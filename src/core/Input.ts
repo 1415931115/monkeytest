@@ -17,7 +17,7 @@ export class Input {
   private readonly cleanup: (() => void)[] = [];
   sensitivity = 0.0007; // yaw (horizontal)
   /** Pitch scale vs yaw — keep vertical look subdued. */
-  verticalSensitivity = 0.00028; // ~40% of horizontal
+  verticalSensitivity = 0; // pitch locked off — horizontal look only
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
   touchMode = false;
@@ -97,7 +97,7 @@ export class Input {
       const ev = e as PointerEvent;
       if (ev.pointerId !== this.lookId) return;
       this.lookDX += (ev.clientX - this.lookLast.x) * 0.0055;
-      this.lookDY += (ev.clientY - this.lookLast.y) * 0.0022;
+      this.lookDY += (ev.clientY - this.lookLast.y) * 0; // vertical look disabled
       this.lookLast = { x: ev.clientX, y: ev.clientY };
     });
     const endLook = (e: Event) => {
