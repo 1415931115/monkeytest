@@ -65,6 +65,8 @@ function chaseTarget(from: THREE.Vector3, player: THREE.Vector3, out: THREE.Vect
 
 // ============================================================== GRABBER
 type GrabberState = 'patrol' | 'alert' | 'chase' | 'retreat';
+/** Keep bodies outside each other's grab radius (catch distance is 1.25). */
+const GRABBER_MIN_SEP = 2.6;
 
 interface Limb2 {
   upper: THREE.Group;
@@ -238,7 +240,8 @@ export class Grabber {
   }
 
   /** Returns true when it catches the player this frame. */
-  update(dt: number, ctx: MonsterContext, zoneBonus: number): boolean {
+  update(dt: number, ctx: MonsterContext, zoneBonus: number, allies?: readonly Grabber[]): boolean {
+    this.separateFrom(allies);
     const toPlayer = tmpA.subVectors(ctx.playerPos, this.position).setY(0);
     const dist = toPlayer.length();
     this.sated = Math.max(0, this.sated - dt);
@@ -317,7 +320,41 @@ export class Grabber {
     }
     this.speedNow += (speed - this.speedNow) * Math.min(1, dt * 6);
     this.root.rotation.y = this.heading.v;
+    this.separateFrom(allies);
+    if (allies) {
+      ctx.colliders.resolve(this.position, 0.45);
+      const extra = this.state === 'retreat' ? 4 : this.state === 'chase' ? 3 : 2.5;
+      clampToCorridor(this.position, 0, extra);
+    }
     return caught;
+  }
+
+  /** Shove away from overlapping grabbers. Does not change chase speed. */
+  private separateFrom(allies: readonly Grabber[] | undefined): void {
+    if (!allies) return;
+    let px = 0;
+    let pz = 0;
+    for (const other of allies) {
+      if (other === this) continue;
+      let dx = this.position.x - other.position.x;
+      let dz = this.position.z - other.position.z;
+      let dist = Math.hypot(dx, dz);
+      if (dist < 0.05) {
+        const ang = (this.index + 1) * 2.399963;
+        dx = Math.cos(ang);
+        dz = Math.sin(ang);
+        dist = 0.05;
+      }
+      if (dist >= GRABBER_MIN_SEP) continue;
+      const overlap = GRABBER_MIN_SEP - dist;
+      px += (dx / dist) * overlap;
+      pz += (dz / dist) * overlap;
+    }
+    const mag = Math.hypot(px, pz);
+    if (mag < 1e-5) return;
+    const step = Math.min(mag, GRABBER_MIN_SEP);
+    this.position.x += (px / mag) * step;
+    this.position.z += (pz / mag) * step;
   }
 
   animate(dt: number, elapsed: number, ctx: MonsterContext): void {
@@ -366,6 +403,8 @@ export class Caller {
   /** Kill window active (seconds remaining). */
   window = 0;
   private callDelay = 0;
+  /** True only after the 「猴哥——」 warning has been voiced this call. */
+  private warned = false;
   private voiceDuration = 0;
   private readonly heading = { v: 0 };
   private readonly head = new THREE.Group();
@@ -463,17 +502,18 @@ export class Caller {
       clampToCorridor(p, 0.5);
       p.y = 0;
     }
-    this.state = 'calling';
-    this.root.visible = true;
     this.callDelay = 0.75;
+    this.warned = false;
     this.voiceDuration = 0;
     this.window = 99; // set precisely once the voice starts
     this.timer = 0;
+    this.state = 'calling';
+    this.root.visible = true;
   }
 
-  /** Kill check is armed when this is true. */
+  /** Kill check is armed only once the warning voice has started. */
   get armed(): boolean {
-    return this.state === 'calling' && this.timer > 0.45;
+    return this.state === 'calling' && this.warned;
   }
 
   startStalk(ctx: MonsterContext, flatForward: THREE.Vector3): void {
@@ -511,6 +551,7 @@ export class Caller {
         if (this.callDelay > 0) {
           this.callDelay -= dt;
           if (this.callDelay <= 0) {
+            this.warned = true;
             this.voiceDuration = ctx.audio.callerVoice(tmpB.copy(this.root.position).setY(2.4));
             this.window = this.voiceDuration + 1.6;
             event = 'voice';
@@ -563,6 +604,8 @@ export class Caller {
     this.state = 'dormant';
     this.cooldown = 0;
     this.window = 0;
+    this.callDelay = 0;
+    this.warned = false;
     this.visibleAmt = 0;
     this.root.visible = false;
   }

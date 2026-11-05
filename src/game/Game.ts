@@ -104,6 +104,9 @@ export class Game {
   private deadDelay = 0;
   private lastZone = -1;
   private bestScore = 0;
+  /** Set when pointer-lock loss itself paused the game, so that same Escape does not resume. */
+  private suppressEscapeResume = false;
+  private lockRequestId = 0;
 
   // scratch
   private readonly flat = new THREE.Vector3();
@@ -248,11 +251,31 @@ export class Game {
 
     this.listen(document, 'pointerlockchange', () => {
       const locked = document.pointerLockElement === this.canvas;
-      if (!locked && this.state === 'playing' && !this.input.touchMode) this.pause();
+      if (locked) {
+        this.hud.setLockPrompt(false);
+        return;
+      }
+      // Lock loss while playing pauses. State is set before releaseLock(), so a
+      // pause that we initiated does not land here and cannot swallow the next Esc.
+      if (this.state === 'playing' && !this.input.touchMode) {
+        this.pause();
+        this.suppressEscapeResume = true;
+        window.setTimeout(() => {
+          this.suppressEscapeResume = false;
+        }, 500);
+      }
+      this.hud.setLockPrompt(false);
     });
     this.listen(window, 'keydown', (e) => {
       const ev = e as KeyboardEvent;
-      if (ev.code === 'Escape' && !ev.repeat && this.state === 'playing') this.pause();
+      if (ev.repeat) return;
+      if (ev.code !== 'Escape' && ev.code !== 'KeyP') return;
+      if (this.state === 'paused' && ev.code === 'Escape' && this.suppressEscapeResume) {
+        this.suppressEscapeResume = false;
+        return;
+      }
+      if (this.state === 'playing') this.pause();
+      else if (this.state === 'paused') this.resume();
     });
     this.listen(this.canvas, 'click', () => {
       if (this.state === 'playing' && !this.input.touchMode && document.pointerLockElement !== this.canvas) this.requestLock();
@@ -263,14 +286,45 @@ export class Game {
     this.listen(window, 'resize', () => this.fitRenderer());
   }
 
+  private needsMouseLock(): boolean {
+    return this.state === 'playing' && !this.input.touchMode && document.pointerLockElement !== this.canvas;
+  }
+
   private requestLock(): void {
+    if (this.input.touchMode) {
+      this.hud.setLockPrompt(false);
+      return;
+    }
+    const id = ++this.lockRequestId;
+    let settled = false;
+    const showIfNeeded = () => {
+      if (settled || id !== this.lockRequestId) return;
+      settled = true;
+      this.hud.setLockPrompt(this.needsMouseLock());
+    };
     try {
       // Do NOT use unadjustedMovement: on high-DPI Windows mice it makes look spin wildly.
-      const p = this.canvas.requestPointerLock() as unknown as Promise<void> | undefined;
-      p?.catch?.(() => undefined);
+      const pending = this.canvas.requestPointerLock() as unknown as Promise<void> | undefined;
+      if (pending && typeof pending.then === 'function') {
+        void pending.then(
+          () => {
+            settled = true;
+            this.hud.setLockPrompt(false);
+          },
+          () => showIfNeeded(),
+        );
+      }
     } catch {
-      /* pointer lock unavailable (headless / touch) */
+      showIfNeeded();
     }
+    window.setTimeout(() => {
+      if (id !== this.lockRequestId || settled) return;
+      if (document.pointerLockElement === this.canvas) {
+        this.hud.setLockPrompt(false);
+        return;
+      }
+      if (this.needsMouseLock()) this.hud.setLockPrompt(true);
+    }, 400);
   }
 
   private releaseLock(): void {
@@ -287,8 +341,12 @@ export class Game {
     this.state = s;
     document.body.dataset.state = s;
     this.hud.setVisible(s === 'playing' || s === 'paused');
-    this.el('#touch-controls').classList.toggle('active', s === 'playing');
+    const touchEl = this.el('#touch-controls');
+    const showTouch = s === 'playing';
+    touchEl.classList.toggle('active', showTouch);
+    touchEl.setAttribute('aria-hidden', showTouch && (this.input?.touchMode ?? false) ? 'false' : 'true');
     document.body.classList.toggle('touch', this.input?.touchMode ?? false);
+    if (s !== 'playing' || this.input?.touchMode) this.hud.setLockPrompt(false);
     this.hud.showScreen(s === 'title' ? 'title' : s === 'paused' ? 'pause' : s === 'dead' ? (this.deadDelay <= 0 ? 'dead' : null) : s === 'extracted' ? 'extracted' : null);
   }
 
@@ -296,8 +354,10 @@ export class Game {
     if (this.state !== 'playing') return;
     this.audio.harvestStop();
     this.endHarvest();
-    this.releaseLock();
+    // Mark paused before releasing the lock so the lock-loss handler does not
+    // treat this Escape as a fresh pause and then resume on the same keydown.
     this.setState('paused');
+    this.releaseLock();
   }
 
   private resume(): void {
@@ -555,19 +615,24 @@ export class Game {
 
     // ---- Grabbers
     let danger = 0;
+    let grabbedThisFrame = false;
     for (const g of this.grabbers) {
       const bonus = g.zone === 2 ? 0.8 : 0;
-      const caught = g.update(dt, ctx, bonus);
+      const caught = g.update(dt, ctx, bonus, this.grabbers);
       g.animate(dt, elapsed, ctx);
       if (g.state === 'chase') {
         const d = Math.hypot(g.position.x - p.position.x, g.position.z - p.position.z);
         danger = Math.max(danger, 1 - THREE.MathUtils.clamp(d / 28, 0, 1));
       }
-      if (caught) {
+      // One source of grab damage per frame. Overlapping grabbers still retreat,
+      // but a stack cannot spend GRABBER_HIT twice before the player can react.
+      if (caught && !grabbedThisFrame) {
+        grabbedThisFrame = true;
         this.onGrabbed(g);
         if (this.state !== 'playing') return;
       }
     }
+    if (this.input.touchMode) this.hud.setLockPrompt(false);
     this.danger = danger;
 
     // ---- Howler / hunt

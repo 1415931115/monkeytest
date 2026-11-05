@@ -20,6 +20,11 @@ export class Input {
   verticalSensitivity = 0; // pitch locked off — horizontal look only
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
+  /**
+   * Phone/tablet layout. Starts from the primary pointer (and the first real
+   * touch) — never from a press on #touch-controls, which stay hidden until
+   * this is true.
+   */
   touchMode = false;
 
   constructor(
@@ -28,6 +33,16 @@ export class Input {
     private readonly knob: HTMLElement,
     buttons: { light: HTMLElement; harvest: HTMLElement; sprint: HTMLElement; look: HTMLElement },
   ) {
+    if (Input.prefersTouch()) this.enableTouchMode();
+    // A tap on the title button (or anywhere) must flip touch mode before the
+    // click handler starts the run. Hidden controls cannot be that first tap.
+    const onTouch = () => this.enableTouchMode();
+    window.addEventListener('touchstart', onTouch, { passive: true });
+    this.cleanup.push(() => window.removeEventListener('touchstart', onTouch));
+    this.on(window, 'pointerdown', (e) => {
+      if ((e as PointerEvent).pointerType === 'touch') this.enableTouchMode();
+    });
+
     this.on(window, 'keydown', (e) => {
       const ev = e as KeyboardEvent;
       if (ev.code === 'KeyF' && !ev.repeat) this.lightPressed = true;
@@ -113,6 +128,24 @@ export class Input {
     });
     this.holdButton(buttons.harvest, (v) => (this.touchHarvest = v));
     this.holdButton(buttons.sprint, (v) => (this.touchSprint = v));
+  }
+
+  /** Coarse primary pointer, or a touch device that cannot hover. */
+  private static prefersTouch(): boolean {
+    if (typeof window.matchMedia !== 'function') return false;
+    if (window.matchMedia('(pointer: coarse)').matches) return true;
+    const hoverNone = window.matchMedia('(hover: none)').matches;
+    const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    return hoverNone && hasTouch;
+  }
+
+  private enableTouchMode(): void {
+    if (this.touchMode) return;
+    this.touchMode = true;
+    document.body.classList.add('touch');
+    // Drop a mouse lock acquired before the device revealed itself as touch,
+    // so the loss-of-lock pause path does not fire (touchMode is already set).
+    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   private holdButton(el: HTMLElement, set: (v: boolean) => void): void {
