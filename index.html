@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07090d" />
+    <link rel="icon" href="data:," />
+    <title>MONKEYBRO · 猴哥 — Night of the Immortal Peaches</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game-canvas" aria-label="First-person view of the night orchard"></canvas>
+
+      <section id="hud" class="hidden" aria-live="polite">
+        <div id="compass" aria-label="Compass">
+          <div id="compass-track"></div>
+          <div id="compass-markers"></div>
+          <div class="compass-needle"></div>
+        </div>
+
+        <div id="zone-panel">
+          <div id="zone-glyph">外园</div>
+          <div class="zone-text">
+            <div id="zone-name">Outer Orchard</div>
+            <div id="objective">Pick peaches · Escape through a lit shrine</div>
+          </div>
+        </div>
+
+        <div id="vitals">
+          <div class="meter meter-health" title="Health">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s-7.5-4.6-9.4-9.3C1.2 8.2 3.4 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.6 0 5.8 3.7 4.4 7.2C19.5 16.4 12 21 12 21z"/></svg>
+            <div class="bar"><i id="health-fill"></i><span class="half-mark"></span></div>
+          </div>
+          <div class="meter meter-stamina" title="Stamina">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+            <div class="bar thin"><i id="stamina-fill"></i></div>
+          </div>
+          <div class="meter meter-battery" title="Flashlight battery">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M6 3h8l-1 5 5 0-1 3H8z M9 12h6v9H9z"/></svg>
+            <div class="bar thin"><i id="battery-fill"></i></div>
+            <span id="light-state">ON</span>
+          </div>
+        </div>
+
+        <div id="satchel" aria-label="Satchel">
+          <div class="slots">
+            <div class="slot" data-tier="0"><span class="peach t0"></span><b id="count-0">0</b><small>10 yr</small></div>
+            <div class="slot" data-tier="1"><span class="peach t1"></span><b id="count-1">0</b><small>100 yr</small></div>
+            <div class="slot" data-tier="2"><span class="peach t2"></span><b id="count-2">0</b><small>1,000 yr</small></div>
+            <div class="slot" data-tier="3"><span class="peach t3"></span><b id="count-3">0</b><small>10,000 yr</small></div>
+          </div>
+          <div id="haul"><small>Haul</small><strong id="haul-value">0</strong></div>
+        </div>
+
+        <div id="reticle">
+          <svg viewBox="0 0 100 100" id="harvest-ring">
+            <circle cx="50" cy="50" r="40" class="ring-bg" />
+            <circle cx="50" cy="50" r="40" class="ring-fg" id="harvest-progress" />
+          </svg>
+          <div class="dot"></div>
+        </div>
+        <div id="prompt" class="hidden"><kbd id="prompt-key">E</kbd><span id="prompt-text">Hold to pick</span><em id="prompt-value"></em></div>
+
+        <div id="banner" class="hidden"><div id="banner-title"></div><div id="banner-sub"></div></div>
+        <div id="subtitle" class="hidden"></div>
+        <div id="hunt-meter" class="hidden"><span>The orchard hunts you</span><div class="bar"><i id="hunt-fill"></i></div></div>
+        <div id="hint" class="hidden"></div>
+        <div id="extract" class="hidden"><div class="bar"><i id="extract-fill"></i></div><span>Escaping…</span></div>
+        <div id="toast-layer"></div>
+      </section>
+
+      <div id="fx-flash"></div>
+
+      <section id="screen-title" class="screen">
+        <div class="panel title-panel">
+          <div class="title-mark">猴哥</div>
+          <h1>MONKEYBRO</h1>
+          <p class="tagline">Night of the Immortal Peaches</p>
+          <ul class="rules">
+            <li><span class="rule-ico peach t2"></span><div><b>Steal the pan-tao.</b> Older peaches glow brighter and are worth far more — 10, 100, 1,000, 10,000 years.</div></li>
+            <li><span class="rule-ico shrine"></span><div><b>Escape through a lit shrine.</b> Two random shrines burn each night. Your haul only counts if you get out.</div></li>
+            <li><span class="rule-ico eye red"></span><div><b>Grabbers</b> hunt anything that glows or runs. Their grip tears away half your life. They flinch from your light.</div></li>
+            <li><span class="rule-ico eye white"></span><div><b>If something calls “猴哥” while you pick — don't turn around.</b></div></li>
+            <li><span class="rule-ico eye gold"></span><div><b>Take an ancient peach</b> and the Howler will wake the whole orchard.</div></li>
+          </ul>
+          <button id="start-button" class="btn primary" type="button">Enter the orchard</button>
+          <div class="controls-line"><kbd>WASD</kbd> move <kbd>Mouse</kbd> look <kbd>Shift</kbd> sprint <kbd>F</kbd> flashlight <kbd>E</kbd>/<kbd>Click</kbd> hold to pick <kbd>Esc</kbd> pause</div>
+          <div id="best-line" class="best-line"></div>
+        </div>
+      </section>
+
+      <section id="screen-pause" class="screen hidden">
+        <div class="panel small">
+          <h2>Paused</h2>
+          <p class="muted">The orchard waits. It is patient.</p>
+          <button id="resume-button" class="btn primary" type="button">Resume</button>
+          <div class="row">
+            <button id="mute-button" class="btn" type="button">Sound: On</button>
+            <button id="restart-button" class="btn" type="button">Restart night</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-dead" class="screen hidden">
+        <div class="panel small dead">
+          <div class="title-mark small" id="dead-glyph">死</div>
+          <h2 id="dead-title">You answered the call</h2>
+          <p id="dead-reason" class="muted"></p>
+          <p id="dead-lost" class="lost"></p>
+          <button id="retry-button" class="btn primary" type="button">Try another night</button>
+        </div>
+      </section>
+
+      <section id="screen-extracted" class="screen hidden">
+        <div class="panel small won">
+          <div class="title-mark small">归</div>
+          <h2>You escaped the orchard</h2>
+          <div id="result-rows" class="result-rows"></div>
+          <div class="result-total"><small>Haul banked</small><strong id="result-total">0</strong></div>
+          <p id="result-best" class="muted"></p>
+          <button id="again-button" class="btn primary" type="button">Go back in</button>
+        </div>
+      </section>
+
+      <div id="touch-controls" aria-hidden="true">
+        <div id="touch-look"></div>
+        <div id="touch-stick"><div id="touch-knob"></div></div>
+        <div id="touch-buttons">
+          <button id="touch-light" type="button" aria-label="Flashlight">
+            <svg viewBox="0 0 24 24"><path d="M6 3h8l-1 5 5 0-1 3H8z M9 12h6v9H9z"/></svg>
+          </button>
+          <button id="touch-sprint" type="button" aria-label="Sprint">
+            <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+          </button>
+          <button id="touch-harvest" type="button" aria-label="Pick">
+            <span class="peach t1"></span>
+          </button>
+        </div>
+        <button id="touch-pause" type="button" aria-label="Pause">II</button>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
