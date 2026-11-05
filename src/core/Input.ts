@@ -15,7 +15,7 @@ export class Input {
   private lookId: number | null = null;
   private lookLast = { x: 0, y: 0 };
   private readonly cleanup: (() => void)[] = [];
-  sensitivity = 0.00135; // mid between 0.00085 (too heavy) and 0.0022 (too twitchy)
+  sensitivity = 0.0007; // stable with OS mouse accel (raw lock made high-DPI mice spin)
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
   touchMode = false;
@@ -41,8 +41,8 @@ export class Input {
       if (!this.pointerLocked) return;
       const ev = e as MouseEvent;
       // Clamp pointer-lock spikes (common on lock engage / alt-tab on Windows).
-      const mx = Math.max(-64, Math.min(64, ev.movementX || 0));
-      const my = Math.max(-64, Math.min(64, ev.movementY || 0));
+      const mx = Math.max(-40, Math.min(40, ev.movementX || 0));
+      const my = Math.max(-40, Math.min(40, ev.movementY || 0));
       this.lookDX += mx * this.sensitivity;
       this.lookDY += my * this.sensitivity;
     });

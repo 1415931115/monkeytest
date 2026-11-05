@@ -17,7 +17,7 @@ import { ZONE_GLYPHS, ZONE_NAMES, zoneAt } from './LevelPath';
 type GameState = 'title' | 'playing' | 'paused' | 'dead' | 'extracted';
 type DeathCause = 'grabber' | 'caller';
 
-const MAX_DPR = LOW_SPEC ? 0.85 : 1.25;
+const MAX_DPR = LOW_SPEC ? 0.7 : 1.25;
 const HARVEST_REACH = 3.0;
 const EXTRACT_TIME = 3.6;
 const EXTRACT_RADIUS = 3.1;
@@ -113,6 +113,7 @@ export class Game {
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = createRenderer(canvas, { antialias: !LOW_SPEC, shadows: !LOW_SPEC });
+    if (LOW_SPEC) this.camera.far = 70;
     this.renderer.setClearColor('#1a0f2e');
     this.scene.background = new THREE.Color('#1a0f2e');
     this.scene.fog = this.fog;
@@ -264,24 +265,9 @@ export class Game {
 
   private requestLock(): void {
     try {
-      const canvas = this.canvas as HTMLCanvasElement & {
-        requestPointerLock(options?: { unadjustedMovement?: boolean }): Promise<void> | void;
-      };
-      // Raw mouse deltas when supported — avoids Windows accel making look feel sticky/jumpy.
-      let result: Promise<void> | void;
-      try {
-        result = canvas.requestPointerLock({ unadjustedMovement: true });
-      } catch {
-        result = canvas.requestPointerLock();
-      }
-      const promise = result as Promise<void> | undefined;
-      promise?.catch?.(() => {
-        try {
-          canvas.requestPointerLock();
-        } catch {
-          /* pointer lock unavailable */
-        }
-      });
+      // Do NOT use unadjustedMovement: on high-DPI Windows mice it makes look spin wildly.
+      const p = this.canvas.requestPointerLock() as unknown as Promise<void> | undefined;
+      p?.catch?.(() => undefined);
     } catch {
       /* pointer lock unavailable (headless / touch) */
     }
