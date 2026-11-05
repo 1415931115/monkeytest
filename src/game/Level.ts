@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LOW_SPEC } from '../core/Quality';
 import { MaterialLibrary } from '../assets/MaterialLibrary';
 import {
   buildGrassClump,
@@ -362,7 +363,7 @@ export class Level {
     const rockGeo = buildRockGeometry(createSeededRandom(19));
     this.disposables.push(grassGeo, rockGeo);
     for (let c = 0; c < chunks; c++) {
-      const grassCount = 900;
+      const grassCount = LOW_SPEC ? 280 : 900;
       const grass = new THREE.InstancedMesh(grassGeo, this.mats.grass, grassCount);
       for (let i = 0; i < grassCount; i++) {
         const t = c * CHUNK + rng() * CHUNK - 5;
@@ -494,7 +495,7 @@ export class Level {
 
   // ---------------------------------------------------------------- fireflies
   private buildFireflies(rng: () => number): { points: THREE.Points; mat: THREE.ShaderMaterial } {
-    const count = 180;
+    const count = LOW_SPEC ? 80 : 180;
     const pos = new Float32Array(count * 3);
     const phase = new Float32Array(count);
     const tmp = new THREE.Vector3();

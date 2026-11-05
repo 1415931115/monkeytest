@@ -1,16 +1,26 @@
 import * as THREE from 'three';
 
-export function createRenderer(canvas: HTMLCanvasElement): THREE.WebGLRenderer {
+export type RendererOptions = {
+  antialias?: boolean;
+  shadows?: boolean;
+};
+
+export function createRenderer(
+  canvas: HTMLCanvasElement,
+  opts: RendererOptions = {},
+): THREE.WebGLRenderer {
+  const antialias = opts.antialias ?? true;
+  const shadows = opts.shadows ?? true;
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias,
     alpha: false,
     powerPreference: 'high-performance',
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = shadows;
   renderer.shadowMap.type = THREE.BasicShadowMap;
   return renderer;
 }
