@@ -17,7 +17,7 @@ import { ZONE_GLYPHS, ZONE_NAMES, zoneAt } from './LevelPath';
 type GameState = 'title' | 'playing' | 'paused' | 'dead' | 'extracted';
 type DeathCause = 'grabber' | 'caller';
 
-const MAX_DPR = LOW_SPEC ? 1.0 : 1.25;
+const MAX_DPR = LOW_SPEC ? 0.85 : 1.25;
 const HARVEST_REACH = 3.0;
 const EXTRACT_TIME = 3.6;
 const EXTRACT_RADIUS = 3.1;
@@ -112,7 +112,7 @@ export class Game {
   private readonly spawnTmp = new THREE.Vector3();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    this.renderer = createRenderer(canvas, { antialias: !LOW_SPEC, shadows: true });
+    this.renderer = createRenderer(canvas, { antialias: !LOW_SPEC, shadows: !LOW_SPEC });
     this.renderer.setClearColor('#1a0f2e');
     this.scene.background = new THREE.Color('#1a0f2e');
     this.scene.fog = this.fog;
