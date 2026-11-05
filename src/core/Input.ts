@@ -15,7 +15,9 @@ export class Input {
   private lookId: number | null = null;
   private lookLast = { x: 0, y: 0 };
   private readonly cleanup: (() => void)[] = [];
-  sensitivity = 0.0007; // stable with OS mouse accel (raw lock made high-DPI mice spin)
+  sensitivity = 0.0007; // yaw (horizontal)
+  /** Pitch scale vs yaw — keep vertical look subdued. */
+  verticalSensitivity = 0.00028; // ~40% of horizontal
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
   touchMode = false;
@@ -44,7 +46,7 @@ export class Input {
       const mx = Math.max(-40, Math.min(40, ev.movementX || 0));
       const my = Math.max(-40, Math.min(40, ev.movementY || 0));
       this.lookDX += mx * this.sensitivity;
-      this.lookDY += my * this.sensitivity;
+      this.lookDY += my * this.verticalSensitivity;
     });
     this.on(document, 'mousedown', (e) => {
       if (this.pointerLocked && (e as MouseEvent).button === 0) this.keys.add('Mouse0');
@@ -95,7 +97,7 @@ export class Input {
       const ev = e as PointerEvent;
       if (ev.pointerId !== this.lookId) return;
       this.lookDX += (ev.clientX - this.lookLast.x) * 0.0055;
-      this.lookDY += (ev.clientY - this.lookLast.y) * 0.0055;
+      this.lookDY += (ev.clientY - this.lookLast.y) * 0.0022;
       this.lookLast = { x: ev.clientX, y: ev.clientY };
     });
     const endLook = (e: Event) => {
