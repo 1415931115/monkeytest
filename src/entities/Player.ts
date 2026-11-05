@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Input } from '../core/Input';
+import { LOW_SPEC } from '../core/Quality';
 import { clampToCorridor, type ColliderGrid } from '../game/LevelPath';
 
 export const PLAYER = {
@@ -46,7 +47,7 @@ export class Player {
 
   constructor(private readonly camera: THREE.PerspectiveCamera, scene: THREE.Scene) {
     this.flashlight = new THREE.SpotLight('#fff1d6', 0, 34, 0.46, 0.55, 1.4);
-    this.flashlight.castShadow = true;
+    this.flashlight.castShadow = !LOW_SPEC;
     this.flashlight.shadow.mapSize.set(512, 512);
     this.flashlight.shadow.camera.near = 0.3;
     this.flashlight.shadow.camera.far = 22;

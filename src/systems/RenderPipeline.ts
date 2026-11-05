@@ -4,11 +4,12 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { LOW_SPEC } from '../core/Quality';
 
 /** Render → Bloom → Output(tone map) → Grain/Vignette/status grading. */
 export class RenderPipeline {
   readonly composer: EffectComposer;
-  readonly bloom: UnrealBloomPass;
+  readonly bloom: UnrealBloomPass | null;
   readonly grade: ShaderPass;
   private width = 0;
   private height = 0;
@@ -20,8 +21,12 @@ export class RenderPipeline {
   ) {
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.42, 0.4, 0.72);
-    this.composer.addPass(this.bloom);
+    if (LOW_SPEC) {
+      this.bloom = null;
+    } else {
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.42, 0.4, 0.72);
+      this.composer.addPass(this.bloom);
+    }
     this.composer.addPass(new OutputPass());
     this.grade = new ShaderPass({
       uniforms: {
@@ -74,7 +79,7 @@ export class RenderPipeline {
     this.height = height;
     this.composer.setPixelRatio(dpr);
     this.composer.setSize(width, height);
-    this.bloom.resolution.set(width * 0.35, height * 0.35);
+    this.bloom?.resolution.set(width * 0.35, height * 0.35);
   }
 
   render(time: number): void {
@@ -84,7 +89,7 @@ export class RenderPipeline {
 
   dispose(): void {
     this.composer.dispose();
-    this.bloom.dispose();
+    this.bloom?.dispose();
   }
 }
 
