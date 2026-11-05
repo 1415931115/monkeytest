@@ -6,28 +6,28 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { LOW_SPEC } from '../core/Quality';
 
-/** Render → Bloom → Output(tone map) → Grain/Vignette/status grading. */
+/** Render → Bloom → Output(tone map) → Grain/Vignette/status grading.
+ *  Low-spec skips the entire post stack (biggest FPS win for look/move stutter). */
 export class RenderPipeline {
-  readonly composer: EffectComposer;
+  readonly composer: EffectComposer | null;
   readonly bloom: UnrealBloomPass | null;
   readonly grade: ShaderPass;
   private width = 0;
   private height = 0;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly scene: THREE.Scene;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly low = LOW_SPEC;
 
   constructor(
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
     camera: THREE.PerspectiveCamera,
   ) {
-    this.composer = new EffectComposer(renderer);
-    this.composer.addPass(new RenderPass(scene, camera));
-    if (LOW_SPEC) {
-      this.bloom = null;
-    } else {
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.42, 0.4, 0.72);
-      this.composer.addPass(this.bloom);
-    }
-    this.composer.addPass(new OutputPass());
+    this.renderer = renderer;
+    this.scene = scene;
+    this.camera = camera;
+
     this.grade = new ShaderPass({
       uniforms: {
         tDiffuse: { value: null },
@@ -48,7 +48,6 @@ export class RenderPipeline {
         float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
         void main() {
           vec2 uv = vUv;
-          // subtle chromatic split on damage
           float ca = uRed * 0.006;
           vec3 col;
           col.r = texture2D(tDiffuse, uv + vec2(ca, 0.0)).r;
@@ -60,16 +59,26 @@ export class RenderPipeline {
           float r = length(d * vec2(1.25, 1.0));
           float vig = smoothstep(0.85, 0.25, r);
           col *= mix(1.0, vig, uVignette + uDark * 0.5);
-          // red damage edges and hunt pulse
           float edge = smoothstep(0.3, 0.85, r);
           col = mix(col, vec3(0.55, 0.02, 0.02), edge * (uRed * 0.85 + uHunt * 0.25));
-          // darkness creeping in while something calls
           col *= 1.0 - uDark * 0.35 * edge;
           float g = hash(uv * vec2(1920.0, 1080.0) + fract(uTime * 13.7)) - 0.5;
           col += g * (0.035 + uDark * 0.05);
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
+
+    if (this.low) {
+      this.composer = null;
+      this.bloom = null;
+      return;
+    }
+
+    this.composer = new EffectComposer(renderer);
+    this.composer.addPass(new RenderPass(scene, camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.42, 0.4, 0.72);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
     this.composer.addPass(this.grade);
   }
 
@@ -77,6 +86,7 @@ export class RenderPipeline {
     if (width === this.width && height === this.height) return;
     this.width = width;
     this.height = height;
+    if (!this.composer) return;
     this.composer.setPixelRatio(dpr);
     this.composer.setSize(width, height);
     this.bloom?.resolution.set(width * 0.35, height * 0.35);
@@ -84,11 +94,15 @@ export class RenderPipeline {
 
   render(time: number): void {
     this.grade.uniforms.uTime.value = time;
-    this.composer.render();
+    if (this.composer) {
+      this.composer.render();
+      return;
+    }
+    this.renderer.render(this.scene, this.camera);
   }
 
   dispose(): void {
-    this.composer.dispose();
+    this.composer?.dispose();
     this.bloom?.dispose();
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LOW_SPEC } from '../core/Quality';
 import { MaterialLibrary, TIER_COLORS } from '../assets/MaterialLibrary';
 import { buildPeachGeometry, buildPeachLeafGeometry } from '../assets/WorldKit';
 import type { PeachSpot } from '../game/Level';
@@ -47,7 +48,7 @@ export class PeachField {
   constructor(mats: MaterialLibrary) {
     for (let tier = 0; tier < 4; tier++) {
       const mesh = new THREE.InstancedMesh(buildPeachGeometry(tier), mats.peach[tier], this.cap);
-      mesh.castShadow = true;
+      mesh.castShadow = !LOW_SPEC;
       mesh.frustumCulled = false;
       mesh.count = 0;
       this.bodies.push(mesh);
