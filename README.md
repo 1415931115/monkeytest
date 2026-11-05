@@ -4,6 +4,10 @@ First-person orchard scavenge-and-extract. You play 猴儿 in a night pan-tao or
 
 第一人称桃园搜寻撤离。你扮演猴儿，在夜间蟠桃园里捡桃、躲开三位仙子，抵达撤离点。
 
+## Play / 游玩
+
+Live: https://1415931115.github.io/monkeytest/
+
 ## Run / 运行
 
 ```bash
