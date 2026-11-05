@@ -6,9 +6,9 @@ import { clampToCorridor, type ColliderGrid } from '../game/LevelPath';
 export const PLAYER = {
   eyeHeight: 1.62,
   radius: 0.35,
-  walkSpeed: 5.6,
-  sprintSpeed: 9.2,
-  accel: 18,
+  walkSpeed: 7.2,
+  sprintSpeed: 11.5,
+  accel: 22,
   staminaMax: 100,
   staminaDrain: 24,
   staminaRegen: 16,
@@ -131,7 +131,8 @@ export class Player {
     if (!this.frozen) {
       const look = input.consumeLook();
       this.yaw -= look.dx;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - look.dy, -1.35, 1.35);
+      // Vertical look disabled — pin pitch level.
+      this.pitch = 0;
     } else {
       input.consumeLook();
     }
