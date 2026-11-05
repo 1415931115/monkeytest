@@ -6,9 +6,9 @@ import { clampToCorridor, type ColliderGrid } from '../game/LevelPath';
 export const PLAYER = {
   eyeHeight: 1.62,
   radius: 0.35,
-  walkSpeed: 3.8,
-  sprintSpeed: 6.7,
-  accel: 14,
+  walkSpeed: 5.6,
+  sprintSpeed: 9.2,
+  accel: 18,
   staminaMax: 100,
   staminaDrain: 24,
   staminaRegen: 16,
