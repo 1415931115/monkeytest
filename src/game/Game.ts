@@ -264,8 +264,24 @@ export class Game {
 
   private requestLock(): void {
     try {
-      const p = this.canvas.requestPointerLock() as unknown as Promise<void> | undefined;
-      p?.catch?.(() => undefined);
+      const canvas = this.canvas as HTMLCanvasElement & {
+        requestPointerLock(options?: { unadjustedMovement?: boolean }): Promise<void> | void;
+      };
+      // Raw mouse deltas when supported — avoids Windows accel making look feel sticky/jumpy.
+      let result: Promise<void> | void;
+      try {
+        result = canvas.requestPointerLock({ unadjustedMovement: true });
+      } catch {
+        result = canvas.requestPointerLock();
+      }
+      const promise = result as Promise<void> | undefined;
+      promise?.catch?.(() => {
+        try {
+          canvas.requestPointerLock();
+        } catch {
+          /* pointer lock unavailable */
+        }
+      });
     } catch {
       /* pointer lock unavailable (headless / touch) */
     }
