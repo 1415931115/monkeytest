@@ -15,7 +15,7 @@ export class Input {
   private lookId: number | null = null;
   private lookLast = { x: 0, y: 0 };
   private readonly cleanup: (() => void)[] = [];
-  sensitivity = 0.00085; // tuned down from 0.0022 (felt too twitchy on real mice)
+  sensitivity = 0.00135; // mid between 0.00085 (too heavy) and 0.0022 (too twitchy)
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
   touchMode = false;
@@ -40,8 +40,11 @@ export class Input {
     this.on(document, 'mousemove', (e) => {
       if (!this.pointerLocked) return;
       const ev = e as MouseEvent;
-      this.lookDX += ev.movementX * this.sensitivity;
-      this.lookDY += ev.movementY * this.sensitivity;
+      // Clamp pointer-lock spikes (common on lock engage / alt-tab on Windows).
+      const mx = Math.max(-64, Math.min(64, ev.movementX || 0));
+      const my = Math.max(-64, Math.min(64, ev.movementY || 0));
+      this.lookDX += mx * this.sensitivity;
+      this.lookDY += my * this.sensitivity;
     });
     this.on(document, 'mousedown', (e) => {
       if (this.pointerLocked && (e as MouseEvent).button === 0) this.keys.add('Mouse0');
@@ -51,7 +54,11 @@ export class Input {
     });
     this.on(document, 'pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === this.canvas;
-      if (!this.pointerLocked) this.releaseAll();
+      if (!this.pointerLocked) {
+        this.releaseAll();
+        this.lookDX = 0;
+        this.lookDY = 0;
+      }
     });
 
     // --- touch: stick

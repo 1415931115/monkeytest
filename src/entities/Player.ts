@@ -207,6 +207,7 @@ export class Player {
   }
 
   private readonly right = new THREE.Vector3();
+  private readonly lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
   rightVec(): THREE.Vector3 {
     return this.right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
   }
@@ -222,7 +223,8 @@ export class Player {
     this.camera.position.set(this.eye.x + bobX * Math.cos(this.yaw), this.eye.y + bobY, this.eye.z - bobX * Math.sin(this.yaw));
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.set(this.pitch + shy, this.yaw + shx, shx * 0.5);
-    this.forward.set(0, 0, -1).applyEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
+    this.lookEuler.set(this.pitch, this.yaw, 0, 'YXZ');
+    this.forward.set(0, 0, -1).applyEuler(this.lookEuler);
   }
 
   /** Horizontal camera forward. */
