@@ -156,6 +156,7 @@ export class Game {
       sprint: this.el('#touch-sprint'),
       look: this.el('#touch-look'),
     });
+    this.input.modeChanged = () => this.onInputModeChanged();
 
     this.mctx = {
       playerPos: this.player.position,
@@ -362,8 +363,31 @@ export class Game {
 
   private resume(): void {
     if (this.state !== 'paused') return;
+    // The Escape that dropped pointer lock must not swallow a later press
+    // after the player has already resumed with P.
+    this.suppressEscapeResume = false;
     this.setState('playing');
     if (!this.input.touchMode) this.requestLock();
+  }
+
+  /** Keep the touch chrome and the pointer-lock path in step with Input. */
+  private onInputModeChanged(): void {
+    const touch = this.input.touchMode;
+    document.body.classList.toggle('touch', touch);
+    const playing = this.state === 'playing';
+    this.el('#touch-controls').setAttribute('aria-hidden', playing && touch ? 'false' : 'true');
+    if (touch) {
+      this.hud.setLockPrompt(false);
+      return;
+    }
+    if (playing) this.requestLock();
+  }
+
+  private harvestHint(): string {
+    const pick = this.input.touchMode
+      ? 'Hold the pick control on a glowing peach'
+      : 'Hold E / click on a glowing peach to pick';
+    return `Light on · ${pick} · If something calls “猴哥——” while you pick, never turn around.`;
   }
 
   /** Reset the world for a fresh night. Does not change the visible state. */
@@ -436,7 +460,7 @@ export class Game {
     this.setState('playing');
     this.hud.setVisible(true);
     this.hud.setVitals(1, 1, 1, true);
-    this.hud.showHint('Light on · Hold E / click on a glowing peach to pick · If something calls “猴哥——” while you pick, never turn around.', 9);
+    this.hud.showHint(this.harvestHint(), 9);
     this.hud.showBanner('偷桃前夜', 'Find a lit shrine to escape — your haul only counts if you get out.', 'info', 4);
     if (!this.input.touchMode) this.requestLock();
   }
@@ -562,13 +586,13 @@ export class Game {
 
     this.input.poll();
     const lightToggle = this.input.consumeLightToggle();
-    if (this.input.touchMode && !document.body.classList.contains('touch')) document.body.classList.add('touch');
+    document.body.classList.toggle('touch', this.input.touchMode);
 
     // ---- harvest targeting (uses last frame's camera orientation; look is applied in update)
     const toggled = p.update(dt, elapsed, this.input, this.level.colliders, lightToggle);
     if (toggled) this.audio.flashlight(p.lightOn);
 
-    const target = this.peachField.findTarget(p.eye, p.forward, HARVEST_REACH);
+    const target = this.peachField.findTarget(p.eye, p.forward, HARVEST_REACH, this.level.colliders);
     const wantsHarvest = this.input.harvest && !p.sprinting;
     if (wantsHarvest && target) {
       if (this.harvestTarget !== target) {

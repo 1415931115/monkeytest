@@ -238,7 +238,12 @@ export class PeachField {
    * toward `reach` — a peach you are facing must stay pickable when it hangs
    * above or below the horizon.
    */
-  findTarget(eye: THREE.Vector3, forward: THREE.Vector3, reach: number): Peach | null {
+  findTarget(
+    eye: THREE.Vector3,
+    forward: THREE.Vector3,
+    reach: number,
+    occluders?: { blocksSegment(x0: number, z0: number, x1: number, z1: number): boolean } | null,
+  ): Peach | null {
     let best: Peach | null = null;
     let bestScore = Infinity;
     const d = new THREE.Vector3();
@@ -254,6 +259,7 @@ export class PeachField {
       const cos = horiz < 1e-4 ? 1 : (d.x * fx + d.z * fz) / horiz;
       const allowed = Math.cos(THREE.MathUtils.degToRad(8 + 14 / Math.max(dist, 0.6)));
       if (cos < allowed) continue;
+      if (occluders?.blocksSegment(eye.x, eye.z, p.position.x, p.position.z)) continue;
       const score = (1 - cos) * 10 + dist * 0.05;
       if (score < bestScore) {
         bestScore = score;

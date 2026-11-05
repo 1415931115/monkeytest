@@ -34,13 +34,14 @@ test('B1 coarse or touch devices show controls before any stick press', async ({
   expect(display).toBe('block');
 });
 
-test('B1 hasTouch landscape viewport is playable without a prior hidden-control press', async ({ browser }) => {
+test('B1 hasTouch landscape viewport is playable without a prior hidden-control press', async ({ browser }, testInfo) => {
+  const baseURL = typeof testInfo.project.use.baseURL === 'string' ? testInfo.project.use.baseURL : 'http://127.0.0.1:5188';
   const context = await browser.newContext({
     hasTouch: true,
     viewport: { width: 844, height: 390 },
     deviceScaleFactor: 2,
     isMobile: false,
-    baseURL: 'http://127.0.0.1:5188',
+    baseURL,
   });
   const page = await context.newPage();
   await boot(page);
@@ -313,4 +314,128 @@ test('M4 grabbers separate and cannot double-hit in one frame', async ({ page })
   expect(report.beforeLone - report.afterLone).toBe(50);
   expect(report.minSep).toBeGreaterThan(2.4);
   expect(report.unique).toBeGreaterThan(1);
+});
+
+test('stray touch on a fine pointer yields to the mouse', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.includes('mobile'), 'desktop pointer');
+  await boot(page);
+  const entered = await page.evaluate(() => {
+    window.dispatchEvent(new Event('touchstart'));
+    const G = (window as unknown as { __MONKEYBRO__: { input: { touchMode: boolean } } }).__MONKEYBRO__;
+    return { touchMode: G.input.touchMode, body: document.body.className };
+  });
+  expect(entered.touchMode).toBe(true);
+  expect(entered.body).toContain('touch');
+
+  await page.mouse.move(420, 280);
+  await page.mouse.move(480, 320);
+  const left = await page.evaluate(() => {
+    const G = (window as unknown as { __MONKEYBRO__: { input: { touchMode: boolean } } }).__MONKEYBRO__;
+    return { touchMode: G.input.touchMode, body: document.body.className };
+  });
+  expect(left.touchMode).toBe(false);
+  expect(left.body.includes('touch')).toBe(false);
+
+  await page.click('#start-button');
+  await page.waitForFunction(() => document.body.dataset.state === 'playing');
+  const playing = await page.evaluate(() => {
+    const G = (window as unknown as { __MONKEYBRO__: { input: { touchMode: boolean } } }).__MONKEYBRO__;
+    return {
+      touchMode: G.input.touchMode,
+      display: getComputedStyle(document.querySelector('#touch-controls')!).display,
+      hint: document.querySelector('#hint')?.textContent ?? '',
+    };
+  });
+  expect(playing.touchMode).toBe(false);
+  expect(playing.display).toBe('none');
+  expect(playing.hint).toContain('Hold E / click');
+});
+
+test('coarse pointer keeps touch controls when a mouse event arrives', async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.includes('mobile'), 'coarse pointer project');
+  await boot(page);
+  await page.mouse.move(30, 40);
+  await page.mouse.move(70, 90);
+  await page.click('#start-button');
+  await page.waitForFunction(() => document.body.dataset.state === 'playing');
+  const playing = await page.evaluate(() => {
+    const G = (window as unknown as { __MONKEYBRO__: { input: { touchMode: boolean } } }).__MONKEYBRO__;
+    return {
+      touchMode: G.input.touchMode,
+      display: getComputedStyle(document.querySelector('#touch-controls')!).display,
+      hint: document.querySelector('#hint')?.textContent ?? '',
+    };
+  });
+  expect(playing.touchMode).toBe(true);
+  expect(playing.display).toBe('block');
+  expect(playing.hint).toContain('Hold the pick control');
+  expect(playing.hint.includes('Hold E')).toBe(false);
+});
+
+test('Esc toggles again after P resumes a lock-loss pause', async ({ page }) => {
+  await boot(page);
+  const report = await page.evaluate(() => {
+    const G = (window as unknown as {
+      __MONKEYBRO__: { input: { touchMode: boolean }; setState: (s: string) => void; state: string };
+    }).__MONKEYBRO__;
+    G.input.touchMode = false;
+    document.body.classList.remove('touch');
+    G.setState('playing');
+    document.dispatchEvent(new Event('pointerlockchange'));
+    const key = (code: string) => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    const afterLoss = G.state;
+    key('KeyP');
+    const afterP = G.state;
+    key('Escape');
+    const afterEsc1 = G.state;
+    key('Escape');
+    const afterEsc2 = G.state;
+    return { afterLoss, afterP, afterEsc1, afterEsc2 };
+  });
+  expect(report).toEqual({
+    afterLoss: 'paused',
+    afterP: 'playing',
+    afterEsc1: 'paused',
+    afterEsc2: 'playing',
+  });
+});
+
+test('trunk occlusion still leaves every peach reachable from some side', async ({ page }) => {
+  test.setTimeout(60_000);
+  await boot(page);
+  const report = await page.evaluate(() => {
+    const G = (window as unknown as {
+      __MONKEYBRO__: {
+        prepareRun: (seed: number) => void;
+        level: { colliders: { blocksSegment(x0: number, z0: number, x1: number, z1: number): boolean } };
+        peachField: {
+          peaches: { position: { x: number; y: number; z: number } }[];
+          findTarget: (eye: unknown, fwd: unknown, reach: number, occluders?: unknown) => unknown;
+        };
+        player: { eye: { constructor: new (x: number, y: number, z: number) => unknown } };
+      };
+    }).__MONKEYBRO__;
+    const Vec = G.player.eye.constructor;
+    let unreachable = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 5; seed++) {
+      G.prepareRun(seed);
+      for (const p of G.peachField.peaches) {
+        total++;
+        let ok = false;
+        for (let a = 0; a < 8 && !ok; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          for (let h = 0.45; h <= 2.7 && !ok; h += 0.45) {
+            const eye = new Vec(p.position.x + Math.sin(ang) * h, 1.62, p.position.z + Math.cos(ang) * h);
+            const fwd = new Vec(-Math.sin(ang), 0, -Math.cos(ang));
+            if (G.peachField.findTarget(eye, fwd, 3, G.level.colliders) === p) ok = true;
+          }
+        }
+        if (!ok) unreachable++;
+      }
+    }
+    return { unreachable, total };
+  });
+  expect(report.total).toBeGreaterThan(100);
+  expect(report.unreachable).toBe(0);
 });

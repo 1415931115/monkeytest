@@ -47,6 +47,8 @@ export interface Circle {
   x: number;
   z: number;
   r: number;
+  /** Tree trunks block harvest line of sight. Rocks and shrines do not. */
+  sight?: boolean;
 }
 
 /** Uniform grid of static circle colliders (tree trunks, rocks, pillars). */
@@ -129,5 +131,48 @@ export class ColliderGrid {
   isFree(x: number, z: number, r: number): boolean {
     const p = { x, z };
     return !this.resolve(p, r);
+  }
+
+  /**
+   * True when a sight-blocking circle (tree trunk) cuts the XZ segment.
+   * The last `endSlack` metres are ignored so a peach beside its own trunk
+   * can still be picked from up close.
+   */
+  blocksSegment(x0: number, z0: number, x1: number, z1: number, endSlack = 0.55): boolean {
+    const dx = x1 - x0;
+    const dz = z1 - z0;
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-4) return false;
+    const keep = Math.max(0, len - endSlack);
+    const x2 = x0 + (dx / len) * keep;
+    const z2 = z0 + (dz / len) * keep;
+    const minX = Math.min(x0, x2);
+    const maxX = Math.max(x0, x2);
+    const minZ = Math.min(z0, z2);
+    const maxZ = Math.max(z0, z2);
+    const ix0 = Math.floor(minX / this.cell) - 1;
+    const ix1 = Math.floor(maxX / this.cell) + 1;
+    const iz0 = Math.floor(minZ / this.cell) - 1;
+    const iz1 = Math.floor(maxZ / this.cell) + 1;
+    const sdx = x2 - x0;
+    const sdz = z2 - z0;
+    const len2 = sdx * sdx + sdz * sdz;
+    for (let ix = ix0; ix <= ix1; ix++) {
+      for (let iz = iz0; iz <= iz1; iz++) {
+        const list = this.cells.get(this.key(ix, iz));
+        if (!list) continue;
+        for (const c of list) {
+          if (!c.sight) continue;
+          let t = 0;
+          if (len2 > 1e-8) t = ((c.x - x0) * sdx + (c.z - z0) * sdz) / len2;
+          if (t < 0) t = 0;
+          else if (t > 1) t = 1;
+          const ex = x0 + sdx * t - c.x;
+          const ez = z0 + sdz * t - c.z;
+          if (ex * ex + ez * ez < c.r * c.r) return true;
+        }
+      }
+    }
+    return false;
   }
 }
