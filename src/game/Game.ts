@@ -11,7 +11,7 @@ import { AudioSystem } from '../systems/AudioSystem';
 import { BurstVfx, RenderPipeline } from '../systems/RenderPipeline';
 import { Hud, type CompassMarker } from '../ui/Hud';
 import { createSeededRandom } from '../utils/random';
-import { Level, pathPoint } from './Level';
+import { Level, pathPoint, type ShrineKind, type ShrineSite } from './Level';
 import { ZONE_GLYPHS, ZONE_NAMES, zoneAt } from './LevelPath';
 
 type GameState = 'title' | 'playing' | 'paused' | 'dead' | 'extracted';
@@ -23,6 +23,10 @@ const EXTRACT_TIME = 3.6;
 const EXTRACT_RADIUS = 3.1;
 const HUNT_DURATION = 45;
 const GRABBER_HIT = 50;
+/** After a bait shrine fires, it cannot be charged again for this long. */
+const BAIT_LOCKOUT = 8;
+/** Bait penalty during a hunt: drag the nearest 紫陌 this much closer. */
+const BAIT_LURCH = 8;
 const BEST_KEY = 'monkeybro.best';
 const FOG_NORMAL = new THREE.Color('#1a0f2e');
 const FOG_HUNT = new THREE.Color('#3a0f1c');
@@ -92,7 +96,17 @@ export class Game {
   // run state
   private readonly satchel = [0, 0, 0, 0];
   private haul = 0;
-  private activeShrines: number[] = [];
+  private realShrines: number[] = [];
+  private baitShrines: number[] = [];
+  /** Shrine whose charge `extractProgress` currently belongs to. */
+  private chargeSite: ShrineSite | null = null;
+  /** 圣地护体: real shrine, progress > 0, player inside its radius. */
+  private sanctuary = false;
+  private readonly sanctuaryCircle = { x: 0, z: 0, r: EXTRACT_RADIUS };
+  private sanctuaryBannerShown = false;
+  private readonly baitLock: number[] = [];
+  /** Short danger pulse after a bait fires (0..1). */
+  private scare = 0;
   private hunt = false;
   private huntTimer = 0;
   private harvestTarget: Peach | null = null;
@@ -167,6 +181,7 @@ export class Game {
       moving: false,
       harvesting: false,
       hunt: false,
+      sanctuary: null,
       colliders: this.level.colliders,
       audio: this.audio,
       rng: () => this.rng(),
@@ -406,14 +421,23 @@ export class Game {
     const a = POOL_I_II[Math.floor(rng() * POOL_I_II.length)];
     let b = POOL_II_III[Math.floor(rng() * POOL_II_III.length)];
     if (b === a) b = POOL_II_III[(POOL_II_III.indexOf(b) + 1) % POOL_II_III.length];
-    this.activeShrines = [a, b];
-    this.level.setActiveShrines(this.activeShrines);
+    this.realShrines = [a, b];
 
     this.grabbers.forEach((g, i) => {
       const plan = GRABBER_PLAN[i];
       const t = plan.t0 + rng() * (plan.t1 - plan.t0);
       g.respawn(pathPoint(t, (rng() - 0.5) * 12, this.spawnTmp));
     });
+
+    // Baits are drawn after the grabber spawns so the existing RNG sequence (and baselines) is unchanged.
+    this.baitShrines = this.pickBaits(this.realShrines, rng);
+    this.level.setShrineKinds(this.realShrines, this.baitShrines);
+    this.baitLock.length = 0;
+    for (let i = 0; i < this.level.shrines.length; i++) this.baitLock.push(0);
+    this.chargeSite = null;
+    this.sanctuary = false;
+    this.sanctuaryBannerShown = false;
+    this.scare = 0;
     for (const c of this.callers) c.reset();
     this.howler.reset();
     this.burst.clear();
@@ -446,6 +470,30 @@ export class Game {
     this.audio.extractCharge(0);
   }
 
+  /** Two baits from the non-real candidates, preferring different zones. */
+  private pickBaits(reals: number[], rng: () => number): number[] {
+    const rest = this.level.shrines.map((s) => s.index).filter((i) => !reals.includes(i));
+    const first = rest.splice(Math.floor(rng() * rest.length), 1)[0];
+    const zone = this.level.shrines[first].zone;
+    const otherZone = rest.filter((i) => this.level.shrines[i].zone !== zone);
+    const pool = otherZone.length > 0 ? otherZone : rest;
+    const second = pool[Math.floor(rng() * pool.length)];
+    return second === undefined ? [first] : [first, second];
+  }
+
+  /** Lit shrine the player stands in; real wins if radii ever overlap. */
+  private shrineUnderPlayer(): ShrineSite | null {
+    const p = this.player.position;
+    let found: ShrineSite | null = null;
+    for (const s of this.level.shrines) {
+      if (!s.active) continue;
+      if (Math.hypot(s.position.x - p.x, s.position.z - p.z) >= EXTRACT_RADIUS) continue;
+      if (s.kind === 'real') return s;
+      found ??= s;
+    }
+    return found;
+  }
+
   private pathHeading(t: number): number {
     const p0 = pathPoint(t, 0);
     const p1 = pathPoint(t + 4, 0);
@@ -461,7 +509,7 @@ export class Game {
     this.hud.setVisible(true);
     this.hud.setVitals(1, 1, 1, true);
     this.hud.showHint(this.harvestHint(), 9);
-    this.hud.showBanner('偷桃前夜', 'Find a lit shrine to escape — your haul only counts if you get out.', 'info', 4);
+    this.hud.showBanner('偷桃前夜', '点亮的冷蓝石阙才是归处；有的灯会骗你。', 'info', 4);
     if (!this.input.touchMode) this.requestLock();
   }
 
@@ -469,6 +517,7 @@ export class Game {
     if (this.state !== 'playing') return;
     this.player.frozen = true;
     this.player.rooted = true;
+    this.sanctuary = false;
     this.endHarvest();
     this.audio.death(cause);
     this.audio.extractCharge(0);
@@ -542,7 +591,7 @@ export class Game {
         case 'paused':
           break;
       }
-      this.level.update(elapsed, this.camera.position, this.hunt ? 1 : 0);
+      this.level.update(elapsed, this.camera.position, this.hunt ? 1 : 0, this.sanctuary ? 0.3 + 0.7 * this.extractProgress : 0);
       this.peachField.update(dt, this.reducedMotion ? 0 : elapsed);
       this.burst.update(dt);
     }
@@ -578,6 +627,7 @@ export class Game {
     c.moving = Math.hypot(this.player.velocity.x, this.player.velocity.z) > 0.6;
     c.harvesting = harvesting;
     c.hunt = this.hunt;
+    c.sanctuary = this.sanctuary ? this.sanctuaryCircle : null;
   }
 
   private updatePlaying(dt: number, elapsed: number): void {
@@ -592,8 +642,12 @@ export class Game {
     const toggled = p.update(dt, elapsed, this.input, this.level.colliders, lightToggle);
     if (toggled) this.audio.flashlight(p.lightOn);
 
+    // ---- Shrine charge (real and bait share radius/time; only real grants 圣地护体)
+    this.updateShrineCharge(dt);
+
     const target = this.peachField.findTarget(p.eye, p.forward, HARVEST_REACH, this.level.colliders);
-    const wantsHarvest = this.input.harvest && !p.sprinting;
+    // 圣地护体 locks picking: you're here to leave, not to farm.
+    const wantsHarvest = this.input.harvest && !p.sprinting && !this.sanctuary;
     if (wantsHarvest && target) {
       if (this.harvestTarget !== target) {
         this.harvestTarget = target;
@@ -631,7 +685,8 @@ export class Game {
         this.hud.showSubtitle('猴哥——', 2.2);
         this.hud.showBanner('青鸾点名', 'Do NOT turn around.', 'caller', 2.6);
       }
-      if (c.armed && this.state === 'playing' && this.isLookingAt(c)) {
+      // 圣地护体: her call still plays outside the circle, but looking is safe inside it.
+      if (c.armed && !this.sanctuary && this.state === 'playing' && this.isLookingAt(c)) {
         this.die('caller');
         return;
       }
@@ -657,7 +712,8 @@ export class Game {
       }
     }
     if (this.input.touchMode) this.hud.setLockPrompt(false);
-    this.danger = danger;
+    this.scare = Math.max(0, this.scare - dt * 0.9);
+    this.danger = Math.max(danger, this.scare);
 
     // ---- Howler / hunt
     if (this.howler.update(dt, elapsed, ctx)) this.audio.summonerHowl(this.howler.root.position);
@@ -677,18 +733,14 @@ export class Game {
     (this.scene.background as THREE.Color).copy(this.fog.color);
 
     // ---- Extraction
-    let nearShrine = false;
-    for (const s of this.level.shrines) {
-      if (!s.active) continue;
-      if (Math.hypot(s.position.x - p.position.x, s.position.z - p.position.z) < EXTRACT_RADIUS) nearShrine = true;
-    }
-    if (nearShrine && !this.harvesting) this.extractProgress = Math.min(1, this.extractProgress + dt / EXTRACT_TIME);
-    else this.extractProgress = Math.max(0, this.extractProgress - dt * 0.8);
     this.audio.extractCharge(this.extractProgress);
     this.hud.setExtract(this.extractProgress > 0.001 ? this.extractProgress : null);
-    if (this.extractProgress >= 1) {
-      this.extract();
-      return;
+    if (this.extractProgress >= 1 && this.chargeSite) {
+      if (this.chargeSite.kind === 'real') {
+        this.extract();
+        return;
+      }
+      this.springBait(this.chargeSite);
     }
 
     // ---- Damage feel
@@ -701,7 +753,7 @@ export class Game {
     if (zone !== this.lastZone) {
       const first = this.lastZone < 0;
       this.lastZone = zone;
-      this.hud.setZone(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'Pick peaches · Escape through a lit shrine');
+      this.hud.setZone(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'Pick peaches · Escape through a cold-blue shrine');
       if (!first) this.hud.showBanner(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'info', 2.8);
     }
     if (this.harvesting && target) {
@@ -715,7 +767,8 @@ export class Game {
     if (low && Math.floor(elapsed * 2) % 6 === 0) this.damage = Math.max(this.damage, 0.12);
 
     const markers: CompassMarker[] = [];
-    for (const s of this.level.shrines) if (s.active) markers.push({ x: s.position.x, z: s.position.z, kind: 'shrine', label: '归' });
+    // Only real shrines are on the compass — baits must be read by eye.
+    for (const s of this.level.shrines) if (s.kind === 'real') markers.push({ x: s.position.x, z: s.position.z, kind: 'shrine', label: '归' });
     this.hud.updateCompass(p.yaw, p.position.x, p.position.z, markers);
 
     // ---- Pipeline grade
@@ -726,6 +779,59 @@ export class Game {
     u.uDark.value = this.darkAmt;
     u.uDesat.value = low ? 0.35 : 0;
     u.uHunt.value = this.huntVis * (0.6 + 0.4 * Math.sin(elapsed * 4));
+  }
+
+  private updateShrineCharge(dt: number): void {
+    for (let i = 0; i < this.baitLock.length; i++) this.baitLock[i] = Math.max(0, this.baitLock[i] - dt);
+    const site = this.shrineUnderPlayer();
+    if (site && site !== this.chargeSite) {
+      // progress never carries between shrines
+      this.extractProgress = 0;
+      this.chargeSite = site;
+    }
+    const locked = site !== null && site.kind === 'bait' && this.baitLock[site.index] > 0;
+    if (site && !locked && !this.harvesting) this.extractProgress = Math.min(1, this.extractProgress + dt / EXTRACT_TIME);
+    else this.extractProgress = Math.max(0, this.extractProgress - dt * 0.8);
+
+    const wasSanctuary = this.sanctuary;
+    this.sanctuary = site !== null && site.kind === 'real' && this.extractProgress > 0;
+    if (this.sanctuary && site) {
+      this.sanctuaryCircle.x = site.position.x;
+      this.sanctuaryCircle.z = site.position.z;
+      if (!wasSanctuary && !this.sanctuaryBannerShown) {
+        this.sanctuaryBannerShown = true;
+        this.hud.showBanner('灯火归位', 'Stay in the light.', 'info', 1.5);
+      }
+    }
+  }
+
+  /** A bait shrine charged full: no escape, a jolt, and the orchard closes in. */
+  private springBait(site: ShrineSite): void {
+    this.extractProgress = 0;
+    this.baitLock[site.index] = BAIT_LOCKOUT;
+    this.audio.extractCharge(0);
+    this.hud.setExtract(null);
+    this.hud.showBanner('金阙戏弄', '这不是归处——灯是假的。', 'howl', 2.5);
+    this.hud.flash('#7a1a0c', 0.55);
+    this.player.addShake(0.6);
+    this.damage = Math.max(this.damage, 0.5);
+    this.scare = 1;
+    // Never starts a hunt on its own; during one, the nearest 紫陌 lunges closer.
+    if (!this.hunt) return;
+    const p = this.player.position;
+    let nearest: Grabber | null = null;
+    let best = Infinity;
+    for (const g of this.grabbers) {
+      const d = Math.hypot(g.position.x - p.x, g.position.z - p.z);
+      if (d < best) {
+        best = d;
+        nearest = g;
+      }
+    }
+    if (nearest) {
+      nearest.lurch(p, BAIT_LURCH, this.level.colliders);
+      this.audio.chaserScream(nearest.position);
+    }
   }
 
   private danger = 0;
@@ -775,7 +881,7 @@ export class Game {
         this.howler.appear(this.mctx);
       }
       if (fresh) {
-        this.hud.showBanner('金阙合围', 'An ancient peach — the orchard hunts you. Reach a shrine!', 'howl', 4);
+        this.hud.showBanner('金阙合围', '冲向真归处——假灯没有护体。', 'howl', 4);
         this.hud.flash('#ffcf4a', 0.5);
       }
     }
@@ -895,6 +1001,59 @@ export class Game {
       },
       hideDebugUi: () => undefined,
     };
+  }
+
+  // ---------------------------------------------------- DEV / QA hooks (window.__MONKEYBRO__)
+
+  /** QA: every candidate with its kind for this run. */
+  listShrines(): { index: number; kind: ShrineKind }[] {
+    return this.level.shrines.map((s) => ({ index: s.index, kind: s.kind }));
+  }
+
+  /**
+   * QA: put the player on a shrine (default: first real) and start charging so
+   * 圣地护体 is live this frame. Pass a bait index to test the lure instead.
+   */
+  forceSanctuary(index?: number): { index: number; kind: ShrineKind } | null {
+    if (this.state !== 'playing') this.startRunNoLock(this.seedValue);
+    const site = index === undefined ? this.level.shrines.find((s) => s.kind === 'real') : this.level.shrines[index];
+    if (!site || !site.active) return null;
+    this.endHarvest();
+    this.player.position.set(site.position.x, this.player.position.y, site.position.z);
+    this.player.velocity.set(0, 0, 0);
+    this.chargeSite = site;
+    this.extractProgress = 0.001;
+    this.updateShrineCharge(0);
+    return { index: site.index, kind: site.kind };
+  }
+
+  /** QA snapshot of the run. */
+  debugState(): { state: GameState; haul: number; best: number; health: number; extractProgress: number; sanctuary: boolean; hunt: boolean; chargeSite: number | null; nearestGrabber: number } {
+    const p = this.player.position;
+    return {
+      nearestGrabber: Math.min(...this.grabbers.map((g) => Math.hypot(g.position.x - p.x, g.position.z - p.z))),
+      state: this.state,
+      haul: this.haul,
+      best: this.bestScore,
+      health: this.player.health,
+      extractProgress: this.extractProgress,
+      sanctuary: this.sanctuary,
+      hunt: this.hunt,
+      chargeSite: this.chargeSite?.index ?? null,
+    };
+  }
+
+  /** QA: put a peach in the satchel (tier >= 2 also starts the hunt, as in play). */
+  debugGivePeach(tier: number): void {
+    const t = THREE.MathUtils.clamp(Math.floor(tier), 0, 3);
+    this.satchel[t]++;
+    this.haul += TIER_VALUE[t];
+    if (t >= 2 && !this.hunt) {
+      this.hunt = true;
+      this.huntTimer = HUNT_DURATION;
+      this.fillContext(false);
+      this.howler.appear(this.mctx);
+    }
   }
 
   private startRunNoLock(seed: number): void {
