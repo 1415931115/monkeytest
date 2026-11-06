@@ -54,3 +54,16 @@ Player **harvests peaches** to **fill the satchel and extract with value** while
 - Headless (swiftshader) checks passed: title→play, movement, harvest progress, Caller 青鸾点名 death, 2× Grabber 紫陌掠命 death, shrine extraction charge, test-hook states. Screenshots in `artifacts/qa/`.
 - QA left open: no real-GPU / pointer-lock / touch playtest; difficulty and flashlight bloom intensity untuned.
 - Dev only: `window.__MONKEYBRO__` exposes the Game instance for scripted QA.
+
+## Premium visual upgrade (branch `feat/premium-visuals`, 2026-11-06)
+Target: Eastern ink-night comic (`ART_DIRECTION.md`, `VISUAL_QA_ANCHORS.md`). Procedural only (Tripo/Gemini/ElevenLabs keys MISSING).
+Baseline defects: near-black ground, muddy tree silhouettes, lantern = yellow blob with no arms, English stat-card HUD.
+
+### Step 1 — World / lighting / materials ✅
+- Lighting: hemisphere `#8a7cc8`/`#2d4a3e` @1.15, cool key moon `#b8c6ff` @1.6 aligned with the sky-dome moon, faint warm peach rim; exposure 1.22.
+- Fog: ink-purple `#2a1c44`, density 0.020 (high) / 0.024 (low) → near/mid/far orchard layers read.
+- Sky: violet horizon haze, moonlit ink-wash cloud bands, layered moon halo, two ink-wash mountain ridges.
+- Ground kit: ink-moss floor texture (tileable moss/soil patches, gold + umber leaves, petals); ancient flagstone trail with cracks/lichen; brighter bark/stone/rock/grass.
+- Orchard readability: canopy vertex colours baked with moonlit-top / ink-purple-underside gradient; pine-smoke teal leaf palette.
+- 「月光碎金」: instanced leaf-dapple decals (moon-blue + peach-gold) along the trail and slanted god-ray cards toward the moon (hunt tints them red).
+- Measured (SwiftShader, active-play): entropy 2.59→4.95 bits, edge density 0.065→0.186, contrast 67.7→103.7, dominant colour share 0.577→0.136.

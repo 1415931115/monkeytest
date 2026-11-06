@@ -28,7 +28,9 @@ const BAIT_LOCKOUT = 8;
 /** Bait penalty during a hunt: drag the nearest 紫陌 this much closer. */
 const BAIT_LURCH = 8;
 const BEST_KEY = 'monkeybro.best';
-const FOG_NORMAL = new THREE.Color('#1a0f2e');
+/** Ink-purple night haze: thin enough that 3 layers of orchard read (near / mid / far). */
+const FOG_DENSITY = LOW_SPEC ? 0.024 : 0.02;
+const FOG_NORMAL = new THREE.Color('#2a1c44');
 const FOG_HUNT = new THREE.Color('#3a0f1c');
 /** Shrine candidate indices by zone pool (Level places 2 per zone: 0,1 | 2,3 | 4,5). */
 const POOL_I_II = [0, 1, 2, 3];
@@ -74,7 +76,7 @@ export class Game {
   private readonly grabbers: Grabber[] = [];
   private readonly callers: Caller[] = [];
   private readonly howler: Howler;
-  private readonly fog = new THREE.FogExp2('#1a0f2e', 0.026);
+  private readonly fog = new THREE.FogExp2('#2a1c44', FOG_DENSITY);
   private readonly loop = new Loop(
     (dt, elapsed) => this.update(dt, elapsed),
     () => this.render(),
@@ -131,16 +133,19 @@ export class Game {
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = createRenderer(canvas, { antialias: !LOW_SPEC, shadows: !LOW_SPEC });
     if (LOW_SPEC) this.camera.far = 70;
-    this.renderer.setClearColor('#1a0f2e');
-    this.scene.background = new THREE.Color('#1a0f2e');
+    this.renderer.setClearColor(FOG_NORMAL);
+    this.scene.background = FOG_NORMAL.clone();
     this.scene.fog = this.fog;
     this.scene.add(this.camera);
 
-    // Moonlit night: cold hemisphere fill + a faint directional moon (no shadow cost).
-    const hemi = new THREE.HemisphereLight('#5a4a90', '#1c1428', 0.55);
-    const moon = new THREE.DirectionalLight('#8fa4ff', 0.5);
-    moon.position.set(-18, 40, -30);
-    this.scene.add(hemi, moon);
+    // Moonlit ink night: violet sky fill over pine-smoke ground bounce, a cool key moon
+    // (matches the sky-dome moon direction) and a faint warm peach-gold counter rim.
+    const hemi = new THREE.HemisphereLight('#8a7cc8', '#2d4a3e', 1.15);
+    const moon = new THREE.DirectionalLight('#b8c6ff', 1.6);
+    moon.position.set(-0.35, 0.55, -0.75).multiplyScalar(60);
+    const rim = new THREE.DirectionalLight('#ffb070', 0.35);
+    rim.position.set(20, 12, 30);
+    this.scene.add(hemi, moon, rim);
 
     this.level = new Level(this.mats);
     this.scene.add(this.level.root);
@@ -455,7 +460,7 @@ export class Game {
     this.runTime = 0;
     this.lastZone = -1;
     this.fog.color.copy(FOG_NORMAL);
-    this.fog.density = 0.026;
+    this.fog.density = FOG_DENSITY;
     (this.scene.background as THREE.Color).copy(FOG_NORMAL);
     this.hud.clearTransient();
     this.hud.setSatchel(this.satchel, 0, true);
@@ -729,7 +734,7 @@ export class Game {
     const huntTarget = this.hunt ? 1 : 0;
     this.huntVis += (huntTarget - this.huntVis) * Math.min(1, dt * 2);
     this.fog.color.copy(FOG_NORMAL).lerp(FOG_HUNT, this.huntVis);
-    this.fog.density = 0.026 + this.huntVis * 0.006;
+    this.fog.density = FOG_DENSITY + this.huntVis * 0.006;
     (this.scene.background as THREE.Color).copy(this.fog.color);
 
     // ---- Extraction

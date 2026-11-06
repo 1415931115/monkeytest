@@ -76,6 +76,8 @@ export class Level {
   /** Bait lure lights (skipped on low-spec to keep the light count down). */
   readonly baitLights = LOW_SPEC ? [] : [new THREE.PointLight(SHRINE_COLORS.bait.light, 0, 15, 1.6), new THREE.PointLight(SHRINE_COLORS.bait.light, 0, 15, 1.6)];
 
+  private shaftMat: THREE.ShaderMaterial | null = null;
+
   constructor(private readonly mats: MaterialLibrary) {
     const rng = createSeededRandom(2024);
     this.buildGround();
@@ -87,6 +89,7 @@ export class Level {
     this.buildLandmarks();
     this.buildTrees(templates, rng);
     this.buildScatter(rng);
+    this.buildMoonlight(rng);
     this.sky = this.buildSky();
     this.skyMat = this.sky.material as THREE.ShaderMaterial;
     const ff = this.buildFireflies(rng);
@@ -99,6 +102,10 @@ export class Level {
 
   update(elapsed: number, cameraPos: THREE.Vector3, hunt01: number, sanctuary01 = 0): void {
     this.fireflyMat.uniforms.uTime.value = elapsed;
+    if (this.shaftMat) {
+      this.shaftMat.uniforms.uTime.value = elapsed;
+      this.shaftMat.uniforms.uHunt.value = hunt01;
+    }
     this.columnMat.uniforms.uTime.value = elapsed;
     this.columnMat.uniforms.uBoost.value = sanctuary01;
     this.baitColumnMat.uniforms.uTime.value = elapsed;
@@ -486,6 +493,117 @@ export class Level {
     this.root.add(cards);
   }
 
+  // ---------------------------------------------------------------- moonlight
+  /** Moonlight cut into shards by leaves: floor dapple decals + slanted god-ray cards. */
+  private buildMoonlight(rng: () => number): void {
+    const tmp = new THREE.Vector3();
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const s = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const card = new THREE.PlaneGeometry(1, 1);
+    card.rotateX(-Math.PI / 2);
+    this.disposables.push(card);
+
+    const moonSpots: THREE.Vector3[] = [];
+    const goldSpots: THREE.Vector3[] = [];
+    for (let t = -6; t < PATH_LENGTH + 6; t += 2.6 + rng() * 2.6) {
+      const lat = (rng() - 0.5) * 9;
+      pathPoint(t, lat, tmp);
+      (rng() < 0.22 ? goldSpots : moonSpots).push(tmp.clone());
+    }
+    const place = (spots: THREE.Vector3[], mat: THREE.Material, y: number) => {
+      const mesh = new THREE.InstancedMesh(card, mat, Math.max(1, spots.length));
+      spots.forEach((p, i) => {
+        q.setFromAxisAngle(up, rng() * Math.PI * 2);
+        const k = 3 + rng() * 3.5;
+        s.set(k, 1, k * (0.7 + rng() * 0.5));
+        m.compose(tmp.set(p.x, y, p.z), q, s);
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.count = spots.length;
+      mesh.computeBoundingSphere();
+      mesh.renderOrder = 1;
+      mesh.name = 'moon-dapple';
+      this.root.add(mesh);
+    };
+    place(moonSpots, this.mats.moonShard, 0.035);
+    place(goldSpots, this.mats.goldShard, 0.04);
+
+    // Slanted light shafts (two crossed cards each), leaning toward the moon.
+    const moonDir = new THREE.Vector3(-0.35, 0.55, -0.75).normalize();
+    const a = new THREE.PlaneGeometry(1, 1);
+    a.translate(0, 0.5, 0);
+    const b = a.clone().rotateY(Math.PI / 2);
+    const shaftGeo = new THREE.BufferGeometry();
+    const pa = a.getAttribute('position').array as Float32Array;
+    const pb = b.getAttribute('position').array as Float32Array;
+    const ua = a.getAttribute('uv').array as Float32Array;
+    shaftGeo.setAttribute('position', new THREE.Float32BufferAttribute([...pa, ...pb], 3));
+    shaftGeo.setAttribute('uv', new THREE.Float32BufferAttribute([...ua, ...ua], 2));
+    const ia = Array.from(a.getIndex()!.array as ArrayLike<number>);
+    shaftGeo.setIndex([...ia, ...ia.map((v) => v + 4)]);
+    a.dispose();
+    b.dispose();
+    this.disposables.push(shaftGeo);
+    this.shaftMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+      uniforms: { uTime: { value: 0 }, uHunt: { value: 0 } },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        varying float vFade;
+        varying float vSeed;
+        void main() {
+          vUv = uv;
+          vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
+          vSeed = instanceMatrix[3].x * 0.37 + instanceMatrix[3].z * 0.11;
+          vec4 mv = viewMatrix * wp;
+          float d = -mv.z;
+          vFade = smoothstep(2.5, 7.0, d) * (1.0 - smoothstep(34.0, 58.0, d));
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float uTime, uHunt;
+        varying vec2 vUv;
+        varying float vFade;
+        varying float vSeed;
+        void main() {
+          float across = sin(vUv.x * 3.14159);
+          across *= across;
+          float along = smoothstep(0.0, 0.08, vUv.y) * pow(1.0 - vUv.y, 1.6);
+          float drift = 0.75 + 0.25 * sin(uTime * 0.6 + vSeed + vUv.y * 5.0);
+          float a = across * along * drift * vFade * 0.16;
+          vec3 col = mix(vec3(0.62, 0.70, 1.0), vec3(1.0, 0.35, 0.3), uHunt * 0.7);
+          gl_FragColor = vec4(col * a, a);
+        }`,
+    });
+    this.disposables.push(this.shaftMat);
+    const shaftSpots: THREE.Vector3[] = [];
+    for (let t = 4; t < PATH_LENGTH; t += (LOW_SPEC ? 22 : 13) + rng() * 8) {
+      pathPoint(t, (rng() - 0.5) * 8, tmp);
+      shaftSpots.push(tmp.clone());
+    }
+    const shafts = new THREE.InstancedMesh(shaftGeo, this.shaftMat, shaftSpots.length);
+    const tilt = new THREE.Quaternion().setFromUnitVectors(up, moonDir);
+    shaftSpots.forEach((p, i) => {
+      const spin = new THREE.Quaternion().setFromAxisAngle(up, rng() * Math.PI);
+      q.copy(tilt).multiply(spin);
+      const w = 1.4 + rng() * 1.6;
+      s.set(w, 13 + rng() * 6, w);
+      m.compose(p, q, s);
+      shafts.setMatrixAt(i, m);
+    });
+    shafts.computeBoundingSphere();
+    shafts.frustumCulled = false;
+    shafts.renderOrder = 5;
+    shafts.name = 'moon-shafts';
+    this.root.add(shafts);
+  }
+
   // ---------------------------------------------------------------- sky
   private buildSky(): THREE.Mesh {
     const mat = new THREE.ShaderMaterial({
@@ -508,18 +626,33 @@ export class Level {
         void main() {
           vec3 d = normalize(vDir);
           float h = clamp(d.y, -0.2, 1.0);
-          vec3 horizon = vec3(0.035, 0.045, 0.07);
-          vec3 zenith = vec3(0.008, 0.012, 0.03);
-          vec3 col = mix(horizon, zenith, smoothstep(0.0, 0.6, h));
-          // stars
+          // ink-purple night: violet horizon haze → deep indigo zenith
+          vec3 horizon = vec3(0.06, 0.04, 0.11);
+          vec3 zenith = vec3(0.01, 0.008, 0.035);
+          vec3 col = mix(horizon, zenith, smoothstep(0.0, 0.55, h));
+          float md = dot(d, uMoonDir);
+          // stars (thinned near the moon)
           vec3 cell = floor(d * 180.0);
           float s = hash(cell);
-          float star = step(0.9965, s) * smoothstep(0.05, 0.3, h);
+          float star = step(0.9962, s) * smoothstep(0.05, 0.3, h) * (1.0 - smoothstep(0.85, 0.98, md));
           col += vec3(0.8, 0.85, 1.0) * star * (0.4 + 0.6 * hash(cell + 3.1));
-          // moon + halo
-          float md = dot(d, uMoonDir);
-          col += vec3(0.9, 0.92, 1.0) * smoothstep(0.9993, 0.9996, md) * 1.6;
-          col += vec3(0.25, 0.3, 0.45) * pow(max(md, 0.0), 60.0) * 0.6;
+          // ink-wash cloud bands lit from the moon side
+          float az = atan(d.z, d.x);
+          float band = sin(az * 3.0 + h * 9.0) * 0.5 + sin(az * 7.0 - h * 14.0) * 0.3 + sin(az * 13.0 + h * 4.0) * 0.2;
+          float cloud = smoothstep(0.15, 0.75, band) * smoothstep(0.05, 0.25, h) * (1.0 - smoothstep(0.45, 0.8, h));
+          float lit = pow(max(md, 0.0), 6.0);
+          col = mix(col, vec3(0.03, 0.025, 0.06) + vec3(0.32, 0.30, 0.42) * lit, cloud * 0.7);
+          // moon disc + layered halo
+          col += vec3(1.0, 0.96, 0.86) * smoothstep(0.99925, 0.99955, md) * 2.2;
+          col += vec3(0.32, 0.34, 0.55) * pow(max(md, 0.0), 80.0) * 0.9;
+          col += vec3(0.16, 0.13, 0.30) * pow(max(md, 0.0), 8.0) * 0.5;
+          // distant ink-wash mountain ridges (two layers)
+          float r1 = 0.035 + 0.03 * sin(az * 2.0 + 1.3) + 0.018 * sin(az * 5.0 + 0.4) + 0.008 * sin(az * 17.0);
+          float r2 = 0.012 + 0.02 * sin(az * 3.0 + 2.1) + 0.012 * sin(az * 9.0 + 1.7);
+          float m1 = 1.0 - smoothstep(r1 - 0.004, r1 + 0.004, h);
+          float m2 = 1.0 - smoothstep(r2 - 0.003, r2 + 0.003, h);
+          col = mix(col, vec3(0.045, 0.035, 0.085), m1 * 0.85);
+          col = mix(col, vec3(0.022, 0.02, 0.045), m2);
           // blood tint during the hunt
           col = mix(col, col * vec3(2.4, 0.6, 0.5) + vec3(0.03, 0.0, 0.0) * (1.0 - h), uHunt * 0.85);
           gl_FragColor = vec4(col, 1.0);

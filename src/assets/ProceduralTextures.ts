@@ -21,111 +21,184 @@ function finish(c: HTMLCanvasElement, repeat = true, srgb = true): THREE.CanvasT
   return t;
 }
 
-/** Dark orchard floor: soil, moss blotches, fallen leaves and pink petals. */
+/** Ink-moss orchard floor: pine-smoke soil, teal moss, fallen leaves, pink petals. */
 export function groundTexture(): THREE.CanvasTexture {
   const size = 512;
   const [c, ctx] = makeCanvas(size);
   const rng = createSeededRandom(11);
-  ctx.fillStyle = '#1d2117';
+  ctx.fillStyle = '#34402f';
   ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 900; i++) {
-    const x = rng() * size;
-    const y = rng() * size;
-    const r = 6 + rng() * 34;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  const blot = (x: number, y: number, r: number, col: string, a: number) => {
+    for (const ox of [-size, 0, size]) {
+      for (const oy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        g.addColorStop(0, `rgba(${col},${a})`);
+        g.addColorStop(1, `rgba(${col},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      }
+    }
+  };
+  // large moss / soil patches (tileable)
+  for (let i = 0; i < 70; i++) {
     const tone = rng();
-    const col = tone < 0.5 ? '42,52,30' : tone < 0.8 ? '38,32,24' : '24,30,20';
-    g.addColorStop(0, `rgba(${col},0.35)`);
-    g.addColorStop(1, `rgba(${col},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    const col = tone < 0.45 ? '62,92,66' : tone < 0.75 ? '74,58,44' : '42,54,58';
+    blot(rng() * size, rng() * size, 40 + rng() * 80, col, 0.45);
+  }
+  for (let i = 0; i < 700; i++) {
+    const tone = rng();
+    const col = tone < 0.5 ? '78,108,70' : tone < 0.8 ? '66,52,40' : '36,46,40';
+    blot(rng() * size, rng() * size, 5 + rng() * 22, col, 0.4);
   }
   // grass strokes
-  for (let i = 0; i < 3500; i++) {
+  for (let i = 0; i < 4200; i++) {
     const x = rng() * size;
     const y = rng() * size;
-    ctx.strokeStyle = `rgba(${60 + rng() * 40},${80 + rng() * 50},${40 + rng() * 20},${0.25 + rng() * 0.3})`;
+    ctx.strokeStyle = `rgba(${80 + rng() * 50},${110 + rng() * 60},${70 + rng() * 30},${0.25 + rng() * 0.35})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + (rng() - 0.5) * 4, y - 3 - rng() * 6);
+    ctx.lineTo(x + (rng() - 0.5) * 4, y - 3 - rng() * 7);
     ctx.stroke();
   }
-  // fallen leaves
-  for (let i = 0; i < 260; i++) {
+  // fallen leaves (umber + old gold)
+  for (let i = 0; i < 320; i++) {
     const x = rng() * size;
     const y = rng() * size;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rng() * Math.PI);
-    ctx.fillStyle = `rgba(${70 + rng() * 50},${55 + rng() * 30},${25},${0.5})`;
+    const gold = rng() < 0.3;
+    ctx.fillStyle = gold ? `rgba(${170 + rng() * 40},${130 + rng() * 30},50,0.6)` : `rgba(${100 + rng() * 50},${70 + rng() * 30},40,0.6)`;
     ctx.beginPath();
     ctx.ellipse(0, 0, 4 + rng() * 3, 1.6 + rng(), 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(30,20,12,0.45)';
+    ctx.beginPath();
+    ctx.moveTo(-4, 0);
+    ctx.lineTo(4, 0);
+    ctx.stroke();
     ctx.restore();
   }
-  // petals
-  for (let i = 0; i < 220; i++) {
+  // peach-blossom petals
+  for (let i = 0; i < 300; i++) {
     const x = rng() * size;
     const y = rng() * size;
-    ctx.fillStyle = `rgba(${200 + rng() * 40},${120 + rng() * 40},${140 + rng() * 30},${0.55})`;
+    ctx.fillStyle = `rgba(${225 + rng() * 30},${140 + rng() * 40},${165 + rng() * 30},${0.7})`;
     ctx.beginPath();
-    ctx.ellipse(x, y, 2 + rng() * 1.5, 1.2 + rng(), rng() * 3, 0, Math.PI * 2);
+    ctx.ellipse(x, y, 2 + rng() * 1.8, 1.2 + rng(), rng() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
   return finish(c);
 }
 
-/** Packed dirt trail with wheel ruts, pebbles and petals (u across, v along). */
+/** Ancient flagstone trail: worn slabs with moss seams (u across, v along). */
 export function pathTexture(): THREE.CanvasTexture {
   const size = 256;
   const [c, ctx] = makeCanvas(size);
   const rng = createSeededRandom(23);
-  ctx.fillStyle = '#3a3226';
+  // moss/soil grout
+  ctx.fillStyle = '#2f3a2a';
   ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 1400; i++) {
-    const x = rng() * size;
-    const y = rng() * size;
-    const r = 1 + rng() * 10;
-    ctx.fillStyle = `rgba(${40 + rng() * 40},${34 + rng() * 30},${24 + rng() * 20},0.25)`;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+  // slabs: 3 rows per tile, staggered, irregular widths
+  const rows = 3;
+  const rh = size / rows;
+  for (let r = 0; r < rows; r++) {
+    let x = r % 2 === 0 ? -18 : -52;
+    while (x < size) {
+      const w = 54 + rng() * 46;
+      const inset = 3 + rng() * 2;
+      const shade = 112 + rng() * 40;
+      const x0 = x + inset;
+      const y0 = r * rh + inset;
+      const ww = w - inset * 2;
+      const hh = rh - inset * 2;
+      ctx.fillStyle = `rgb(${shade},${shade - 6},${shade - 18})`;
+      ctx.beginPath();
+      const k = 6;
+      ctx.moveTo(x0 + k, y0);
+      ctx.lineTo(x0 + ww - k * rng(), y0 + rng() * 2);
+      ctx.lineTo(x0 + ww, y0 + hh - k * rng());
+      ctx.lineTo(x0 + k * rng(), y0 + hh);
+      ctx.lineTo(x0, y0 + k);
+      ctx.closePath();
+      ctx.fill();
+      // worn centre highlight + edge darkening
+      const g = ctx.createRadialGradient(x0 + ww / 2, y0 + hh / 2, 4, x0 + ww / 2, y0 + hh / 2, ww * 0.7);
+      g.addColorStop(0, 'rgba(255,240,215,0.14)');
+      g.addColorStop(1, 'rgba(20,16,12,0.35)');
+      ctx.fillStyle = g;
+      ctx.fill();
+      // cracks
+      ctx.strokeStyle = 'rgba(30,26,20,0.55)';
+      ctx.lineWidth = 1;
+      for (let n = 0; n < 2; n++) {
+        let cx = x0 + rng() * ww;
+        let cy = y0 + rng() * hh;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        for (let s = 0; s < 4; s++) {
+          cx += (rng() - 0.5) * 18;
+          cy += (rng() - 0.5) * 14;
+          ctx.lineTo(cx, cy);
+        }
+        ctx.stroke();
+      }
+      x += w;
+    }
   }
-  // ruts
-  for (const rx of [0.3, 0.7]) {
-    const g = ctx.createLinearGradient(rx * size - 14, 0, rx * size + 14, 0);
-    g.addColorStop(0, 'rgba(20,16,12,0)');
-    g.addColorStop(0.5, 'rgba(20,16,12,0.35)');
-    g.addColorStop(1, 'rgba(20,16,12,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(rx * size - 14, 0, 28, size);
+  // speckle / lichen
+  for (let i = 0; i < 900; i++) {
+    const v = rng();
+    ctx.fillStyle = v < 0.5 ? `rgba(40,34,26,0.35)` : v < 0.8 ? `rgba(110,140,100,0.3)` : `rgba(200,190,160,0.25)`;
+    ctx.fillRect(rng() * size, rng() * size, 1 + rng() * 2, 1 + rng() * 2);
   }
-  // pebbles
-  for (let i = 0; i < 160; i++) {
-    const x = rng() * size;
-    const y = rng() * size;
-    const shade = 90 + rng() * 60;
-    ctx.fillStyle = `rgb(${shade},${shade - 8},${shade - 20})`;
-    ctx.beginPath();
-    ctx.ellipse(x, y, 1 + rng() * 2.4, 1 + rng() * 1.6, rng() * 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  for (let i = 0; i < 70; i++) {
-    ctx.fillStyle = `rgba(${210 + rng() * 40},${130 + rng() * 40},${150},0.6)`;
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = `rgba(${220 + rng() * 30},${140 + rng() * 40},${160},0.7)`;
     ctx.beginPath();
     ctx.ellipse(rng() * size, rng() * size, 2.2, 1.3, rng() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
-  // soft edges (alpha via color fade to ground handled in shader-free way: darken edges)
+  // soft moss edges blending into the floor
   const edge = ctx.createLinearGradient(0, 0, size, 0);
-  edge.addColorStop(0, 'rgba(29,33,23,1)');
-  edge.addColorStop(0.16, 'rgba(29,33,23,0)');
-  edge.addColorStop(0.84, 'rgba(29,33,23,0)');
-  edge.addColorStop(1, 'rgba(29,33,23,1)');
+  edge.addColorStop(0, 'rgba(52,64,47,1)');
+  edge.addColorStop(0.14, 'rgba(52,64,47,0)');
+  edge.addColorStop(0.86, 'rgba(52,64,47,0)');
+  edge.addColorStop(1, 'rgba(52,64,47,1)');
   ctx.fillStyle = edge;
   ctx.fillRect(0, 0, size, size);
   return finish(c);
+}
+
+/** Leaf-dapple mask: moonlight cut into shards by the canopy (white on black, additive). */
+export function dappleTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const [c, ctx] = makeCanvas(size);
+  const rng = createSeededRandom(77);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, size, size);
+  const cx = size / 2;
+  for (let i = 0; i < 70; i++) {
+    const a = rng() * Math.PI * 2;
+    const d = Math.pow(rng(), 0.7) * size * 0.42;
+    const x = cx + Math.cos(a) * d;
+    const y = cx + Math.sin(a) * d;
+    const r = 4 + rng() * 16;
+    const fall = 1 - d / (size * 0.45);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(255,255,255,${0.9 * fall})`);
+    g.addColorStop(0.55, `rgba(255,255,255,${0.55 * fall})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rng() * Math.PI);
+    ctx.scale(1, 0.4 + rng() * 0.5);
+    ctx.translate(-x, -y);
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+  }
+  return finish(c, false);
 }
 
 /** Gnarled peach bark: vertical fissures and lichen. */
@@ -133,7 +206,7 @@ export function barkTexture(): THREE.CanvasTexture {
   const w = 256;
   const [c, ctx] = makeCanvas(w);
   const rng = createSeededRandom(31);
-  ctx.fillStyle = '#3b2c24';
+  ctx.fillStyle = '#5a463a';
   ctx.fillRect(0, 0, w, w);
   for (let i = 0; i < 140; i++) {
     const x = rng() * w;
