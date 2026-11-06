@@ -59,6 +59,9 @@ test('renders a nonblank interactive game canvas', async ({ page }, testInfo) =>
   const sample = await sampleCanvas(page);
   expect(sample, JSON.stringify(sample)).toMatchObject({ ok: true });
 
+  await page.click('#start-button');
+  await page.waitForFunction(() => document.body.dataset.state === 'playing');
+
   const before = await page.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__?.player.position.z ?? 0);
 
   if (testInfo.project.name.includes('mobile')) {

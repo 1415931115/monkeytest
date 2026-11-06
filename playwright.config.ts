@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5188';
+
 export default defineConfig({
   testDir: './tests',
   // One worker: parallel headless WebGL contexts contend for the GPU, and the
@@ -11,13 +13,17 @@ export default defineConfig({
     timeout: 5_000,
   },
   use: {
-    baseURL: 'http://127.0.0.1:5188',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://127.0.0.1:5188',
+    url: baseURL,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
+      PLAYWRIGHT_BASE_URL: baseURL,
+    },
     // Reuse a dev server that is already running for the canvas inspector;
     // CI always starts a fresh one.
     reuseExistingServer: !process.env.CI,

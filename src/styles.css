@@ -511,6 +511,23 @@ kbd {
   color: var(--text);
   animation: fadeIn 0.3s ease-out;
 }
+#lock-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 72px);
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: min(420px, 90vw);
+  padding: 8px 16px;
+  background: var(--lacquer);
+  border: 1px solid var(--gold);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--text);
+  pointer-events: none;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
 #extract {
   position: absolute;
   left: 50%;
@@ -769,8 +786,15 @@ h2 {
   pointer-events: none;
   display: none;
 }
+/* Visible once a run is active on a touch device. Coarse pointers do not wait
+   for body.touch — that class used to be set only by pressing these controls. */
 .touch #touch-controls.active {
   display: block;
+}
+@media (pointer: coarse) {
+  #touch-controls.active {
+    display: block;
+  }
 }
 #touch-look {
   position: absolute;

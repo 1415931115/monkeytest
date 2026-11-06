@@ -20,7 +20,14 @@ export class Input {
   verticalSensitivity = 0; // pitch locked off — horizontal look only
   /** True when keyboard/mouse input should drive the game (pointer locked). */
   pointerLocked = false;
+  /**
+   * Phone/tablet layout. Starts from the primary pointer (and the first real
+   * touch) — never from a press on #touch-controls, which stay hidden until
+   * this is true.
+   */
   touchMode = false;
+  /** Fired when touchMode flips, so the game can restore pointer lock. */
+  modeChanged: (() => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -28,6 +35,19 @@ export class Input {
     private readonly knob: HTMLElement,
     buttons: { light: HTMLElement; harvest: HTMLElement; sprint: HTMLElement; look: HTMLElement },
   ) {
+    if (Input.prefersTouch()) this.enableTouchMode();
+    // A tap on the title button (or anywhere) must flip touch mode before the
+    // click handler starts the run. Hidden controls cannot be that first tap.
+    const onTouch = () => this.enableTouchMode();
+    window.addEventListener('touchstart', onTouch, { passive: true });
+    this.cleanup.push(() => window.removeEventListener('touchstart', onTouch));
+    this.on(window, 'pointerdown', (e) => {
+      const ev = e as PointerEvent;
+      if (ev.pointerType === 'touch') this.enableTouchMode();
+      else this.noteMouse(ev);
+    });
+    this.on(window, 'pointermove', (e) => this.noteMouse(e as PointerEvent));
+
     this.on(window, 'keydown', (e) => {
       const ev = e as KeyboardEvent;
       if (ev.code === 'KeyF' && !ev.repeat) this.lightPressed = true;
@@ -66,7 +86,7 @@ export class Input {
     // --- touch: stick
     this.on(stick, 'pointerdown', (e) => {
       const ev = e as PointerEvent;
-      this.touchMode = true;
+      this.enableTouchMode();
       this.stickId = ev.pointerId;
       stick.setPointerCapture(ev.pointerId);
       this.updateStick(ev);
@@ -88,7 +108,7 @@ export class Input {
     const look = buttons.look;
     this.on(look, 'pointerdown', (e) => {
       const ev = e as PointerEvent;
-      this.touchMode = true;
+      this.enableTouchMode();
       this.lookId = ev.pointerId;
       look.setPointerCapture(ev.pointerId);
       this.lookLast = { x: ev.clientX, y: ev.clientY };
@@ -108,18 +128,65 @@ export class Input {
     // --- touch buttons
     this.on(buttons.light, 'pointerdown', (e) => {
       e.preventDefault();
-      this.touchMode = true;
+      this.enableTouchMode();
       this.lightPressed = true;
     });
     this.holdButton(buttons.harvest, (v) => (this.touchHarvest = v));
     this.holdButton(buttons.sprint, (v) => (this.touchSprint = v));
   }
 
+  /** Coarse primary pointer, or a touch device that cannot hover. */
+  private static prefersTouch(): boolean {
+    if (typeof window.matchMedia !== 'function') return false;
+    if (window.matchMedia('(pointer: coarse)').matches) return true;
+    const hoverNone = window.matchMedia('(hover: none)').matches;
+    const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    return hoverNone && hasTouch;
+  }
+
+  private enableTouchMode(): void {
+    this.setTouchMode(true);
+  }
+
+  /**
+   * A real mouse on a fine-pointer machine leaves touch mode. Phones stay:
+   * their primary pointer is coarse, and compatibility mouse events after a
+   * tap report firesTouchEvents.
+   */
+  private noteMouse(ev: PointerEvent): void {
+    if (!this.touchMode || ev.pointerType !== 'mouse') return;
+    if (Input.prefersTouch()) return;
+    const caps = (ev as UIEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities;
+    if (caps?.firesTouchEvents) return;
+    if (ev.type === 'pointermove' && !ev.movementX && !ev.movementY) return;
+    this.setTouchMode(false);
+  }
+
+  private setTouchMode(on: boolean): void {
+    if (on === this.touchMode) return;
+    if (!on && Input.prefersTouch()) return;
+    this.touchMode = on;
+    document.body.classList.toggle('touch', on);
+    if (!on) {
+      this.touchMove.x = 0;
+      this.touchMove.y = 0;
+      this.touchSprint = false;
+      this.touchHarvest = false;
+      this.stickId = null;
+      this.lookId = null;
+      this.knob.style.transform = 'translate(-50%, -50%)';
+    }
+    this.modeChanged?.();
+    // Drop a mouse lock only when entering touch, and only after touchMode is
+    // set, so the loss-of-lock handler does not pause a touch session.
+    if (on && document.pointerLockElement) document.exitPointerLock();
+  }
+
   private holdButton(el: HTMLElement, set: (v: boolean) => void): void {
     this.on(el, 'pointerdown', (e) => {
       const ev = e as PointerEvent;
       ev.preventDefault();
-      this.touchMode = true;
+      this.enableTouchMode();
       el.setPointerCapture(ev.pointerId);
       el.classList.add('pressed');
       set(true);

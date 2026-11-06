@@ -316,7 +316,7 @@ export class Level {
       if (!list) groups.set(key, (list = []));
       list.push(p);
       const tr = templates[p.tpl].trunkRadius * p.s + 0.12;
-      this.colliders.add({ x: p.x, z: p.z, r: tr });
+      this.colliders.add({ x: p.x, z: p.z, r: tr, sight: true });
     }
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();

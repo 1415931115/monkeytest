@@ -232,20 +232,34 @@ export class PeachField {
     }
   }
 
-  /** Peach under the reticle within reach, or null. */
-  findTarget(eye: THREE.Vector3, forward: THREE.Vector3, reach: number): Peach | null {
+  /**
+   * Peach under the reticle within reach, or null.
+   * Pitch is locked level, so the aim cone is horizontal. Height still counts
+   * toward `reach` — a peach you are facing must stay pickable when it hangs
+   * above or below the horizon.
+   */
+  findTarget(
+    eye: THREE.Vector3,
+    forward: THREE.Vector3,
+    reach: number,
+    occluders?: { blocksSegment(x0: number, z0: number, x1: number, z1: number): boolean } | null,
+  ): Peach | null {
     let best: Peach | null = null;
     let bestScore = Infinity;
     const d = new THREE.Vector3();
+    const fh = Math.hypot(forward.x, forward.z);
+    const fx = fh > 1e-5 ? forward.x / fh : 0;
+    const fz = fh > 1e-5 ? forward.z / fh : -1;
     for (const p of this.peaches) {
       if (!p.active) continue;
       d.subVectors(p.position, eye);
       const dist = d.length();
-      if (dist > reach) continue;
-      d.divideScalar(dist);
-      const cos = d.dot(forward);
+      if (dist > reach || dist < 1e-4) continue;
+      const horiz = Math.hypot(d.x, d.z);
+      const cos = horiz < 1e-4 ? 1 : (d.x * fx + d.z * fz) / horiz;
       const allowed = Math.cos(THREE.MathUtils.degToRad(8 + 14 / Math.max(dist, 0.6)));
       if (cos < allowed) continue;
+      if (occluders?.blocksSegment(eye.x, eye.z, p.position.x, p.position.z)) continue;
       const score = (1 - cos) * 10 + dist * 0.05;
       if (score < bestScore) {
         bestScore = score;

@@ -43,6 +43,8 @@ export class Hud {
   private readonly huntMeter = $('#hunt-meter');
   private readonly huntFill = $('#hunt-fill');
   private readonly hint = $('#hint');
+  private readonly lockHint = $('#lock-hint');
+  private lockPromptShown = false;
   private readonly extract = $('#extract');
   private readonly extractFill = $('#extract-fill');
   private readonly toastLayer = $('#toast-layer');
@@ -178,6 +180,13 @@ export class Hud {
     this.hint.textContent = text;
     this.hint.classList.remove('hidden');
     this.hintTimer = seconds;
+  }
+
+  /** Persistent "click to capture the mouse" prompt. Independent of the timed hint. */
+  setLockPrompt(show: boolean): void {
+    if (show === this.lockPromptShown) return;
+    this.lockPromptShown = show;
+    this.lockHint.classList.toggle('hidden', !show);
   }
 
   setHunt(frac: number | null): void {
