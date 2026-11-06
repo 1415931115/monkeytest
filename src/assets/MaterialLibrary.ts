@@ -48,6 +48,20 @@ export class MaterialLibrary {
     roughness: 0.6,
   });
   readonly lanternDark = new THREE.MeshStandardMaterial({ color: '#4a1410', roughness: 0.7 });
+  /** Real extraction shrine lanterns: cool extract blue. */
+  readonly lanternExtract = new THREE.MeshStandardMaterial({
+    color: '#7fc8ff',
+    emissive: '#4aa8ff',
+    emissiveIntensity: 2.8,
+    roughness: 0.6,
+  });
+  /** Bait shrine lanterns: gold / dark-red lure (Howler sigil energy). */
+  readonly lanternBait = new THREE.MeshStandardMaterial({
+    color: '#e0a03a',
+    emissive: '#c8641a',
+    emissiveIntensity: 2.4,
+    roughness: 0.6,
+  });
   readonly stoneLanternGlow = new THREE.MeshStandardMaterial({
     color: '#ffb35a',
     emissive: '#ff9a3a',

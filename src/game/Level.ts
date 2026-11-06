@@ -19,16 +19,27 @@ export interface PeachSpot {
   special?: number;
 }
 
+export type ShrineKind = 'real' | 'bait' | 'dormant';
+
 export interface ShrineSite {
   index: number;
   t: number;
+  zone: number;
   position: THREE.Vector3;
   rotationY: number;
   lanterns: THREE.Mesh[];
   column: THREE.Mesh;
   ring: THREE.Mesh;
+  /** real = extraction, bait = chargeable lure (no sanctuary, no escape), dormant = unlit. */
+  kind: ShrineKind;
+  /** True for real and bait: lit and chargeable. */
   active: boolean;
 }
+
+const SHRINE_COLORS: Record<'real' | 'bait', { ring: string; column: THREE.Vector3; light: string }> = {
+  real: { ring: '#7cc4ff', column: new THREE.Vector3(0.4, 0.72, 1.0), light: '#5aa8ff' },
+  bait: { ring: '#ffb04a', column: new THREE.Vector3(1.0, 0.55, 0.22), light: '#ff7a2a' },
+};
 
 const CHUNK = 50;
 
@@ -54,16 +65,25 @@ export class Level {
   private readonly skyMat: THREE.ShaderMaterial;
   readonly sky: THREE.Mesh;
   private readonly columnMat: THREE.ShaderMaterial;
+  private readonly baitColumnMat: THREE.ShaderMaterial;
+  private readonly ringMats: Record<'real' | 'bait', THREE.MeshBasicMaterial> = {
+    real: new THREE.MeshBasicMaterial({ color: SHRINE_COLORS.real.ring, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+    bait: new THREE.MeshBasicMaterial({ color: SHRINE_COLORS.bait.ring, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+  };
   private readonly disposables: { dispose(): void }[] = [];
-  /** Two shared lights that move to whichever shrines are lit this run. */
-  readonly shrineLights = [new THREE.PointLight('#ff8a4a', 0, 18, 1.5), new THREE.PointLight('#ff8a4a', 0, 18, 1.5)];
+  /** Two shared cold-blue lights that move to the real shrines this run. */
+  readonly shrineLights = [new THREE.PointLight(SHRINE_COLORS.real.light, 0, 18, 1.5), new THREE.PointLight(SHRINE_COLORS.real.light, 0, 18, 1.5)];
+  /** Bait lure lights (skipped on low-spec to keep the light count down). */
+  readonly baitLights = LOW_SPEC ? [] : [new THREE.PointLight(SHRINE_COLORS.bait.light, 0, 15, 1.6), new THREE.PointLight(SHRINE_COLORS.bait.light, 0, 15, 1.6)];
 
   constructor(private readonly mats: MaterialLibrary) {
     const rng = createSeededRandom(2024);
     this.buildGround();
     const templates = [101, 202, 303, 404, 505].map((s) => buildTreeTemplate(s));
     for (const t of templates) this.disposables.push(t.trunk, t.canopy);
-    this.columnMat = this.makeColumnMaterial();
+    this.columnMat = this.makeColumnMaterial(SHRINE_COLORS.real.column);
+    this.baitColumnMat = this.makeColumnMaterial(SHRINE_COLORS.bait.column);
+    this.disposables.push(this.ringMats.real, this.ringMats.bait);
     this.buildLandmarks();
     this.buildTrees(templates, rng);
     this.buildScatter(rng);
@@ -74,15 +94,23 @@ export class Level {
     this.fireflyMat = ff.mat;
     this.root.add(this.fireflies);
     for (const l of this.shrineLights) this.root.add(l);
+    for (const l of this.baitLights) this.root.add(l);
   }
 
-  update(elapsed: number, cameraPos: THREE.Vector3, hunt01: number): void {
+  update(elapsed: number, cameraPos: THREE.Vector3, hunt01: number, sanctuary01 = 0): void {
     this.fireflyMat.uniforms.uTime.value = elapsed;
     this.columnMat.uniforms.uTime.value = elapsed;
+    this.columnMat.uniforms.uBoost.value = sanctuary01;
+    this.baitColumnMat.uniforms.uTime.value = elapsed;
+    // Gold sigil energy on the lures strengthens while the Howler hunts.
+    this.baitColumnMat.uniforms.uBoost.value = hunt01 * 0.6;
     this.sky.position.copy(cameraPos);
     this.skyMat.uniforms.uHunt.value = hunt01;
     this.shrineLights.forEach((l, i) => {
-      l.intensity = 14 + Math.sin(elapsed * 7.3 + i) * 1.6 + Math.sin(elapsed * 13.1 + i * 2) * 0.8;
+      l.intensity = 14 + Math.sin(elapsed * 7.3 + i) * 1.6 + Math.sin(elapsed * 13.1 + i * 2) * 0.8 + sanctuary01 * 10;
+    });
+    this.baitLights.forEach((l, i) => {
+      l.intensity = 11 + hunt01 * 4 + Math.sin(elapsed * 9.1 + i * 3) * 2.2 + Math.sin(elapsed * 17.3 + i) * 1.1;
     });
     for (const s of this.shrines) {
       if (!s.active) continue;
@@ -91,19 +119,32 @@ export class Level {
     }
   }
 
-  setActiveShrines(indices: number[]): void {
+  /** Tag every candidate: listed reals/baits light up, the rest go dormant. Real wins on overlap. */
+  setShrineKinds(reals: number[], baits: number[]): void {
     for (const s of this.shrines) {
-      s.active = indices.includes(s.index);
-      for (const l of s.lanterns) l.material = s.active ? this.mats.lanternLit : this.mats.lanternDark;
+      s.kind = reals.includes(s.index) ? 'real' : baits.includes(s.index) ? 'bait' : 'dormant';
+      s.active = s.kind !== 'dormant';
+      for (const l of s.lanterns) l.material = s.kind === 'real' ? this.mats.lanternExtract : s.kind === 'bait' ? this.mats.lanternBait : this.mats.lanternDark;
       s.column.visible = s.active;
       s.ring.visible = s.active;
+      if (s.kind === 'real') {
+        s.column.material = this.columnMat;
+        s.ring.material = this.ringMats.real;
+      } else if (s.kind === 'bait') {
+        s.column.material = this.baitColumnMat;
+        s.ring.material = this.ringMats.bait;
+      }
     }
-    const active = this.shrines.filter((s) => s.active);
-    this.shrineLights.forEach((l, i) => {
-      const s = active[i];
-      if (s) l.position.set(s.position.x, 2.2, s.position.z);
-      else l.position.set(0, -50, 0);
-    });
+    const place = (lights: THREE.PointLight[], kind: ShrineKind) => {
+      const sites = this.shrines.filter((s) => s.kind === kind);
+      lights.forEach((l, i) => {
+        const s = sites[i];
+        if (s) l.position.set(s.position.x, 2.2, s.position.z);
+        else l.position.set(0, -50, 0);
+      });
+    };
+    place(this.shrineLights, 'real');
+    place(this.baitLights, 'bait');
   }
 
   dispose(): void {
@@ -114,6 +155,7 @@ export class Level {
     this.fireflyMat.dispose();
     this.skyMat.dispose();
     this.columnMat.dispose();
+    this.baitColumnMat.dispose();
   }
 
   // ---------------------------------------------------------------- ground
@@ -200,10 +242,8 @@ export class Level {
     ];
     const ringGeo = new THREE.RingGeometry(2.1, 2.5, 48);
     ringGeo.rotateX(-Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({ color: '#ffb36a', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
     const colGeo = new THREE.CylinderGeometry(2.0, 2.3, 26, 24, 1, true);
     colGeo.translate(0, 13, 0);
-    this.disposables.push(ringMat);
     sites.forEach((s, index) => {
       const pos = pathPoint(s.t, s.side * 6.2);
       const yaw = pathYaw(s.t) + (s.side > 0 ? Math.PI / 2 : -Math.PI / 2);
@@ -221,13 +261,13 @@ export class Level {
       plat.position.set(pos.x, 0.07, pos.z);
       plat.receiveShadow = true;
       this.root.add(plat);
-      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const ring = new THREE.Mesh(ringGeo, this.ringMats.real);
       ring.position.set(pos.x, 0.16, pos.z);
       this.root.add(ring);
       const column = new THREE.Mesh(colGeo, this.columnMat);
       column.position.set(pos.x, 0.1, pos.z);
       this.root.add(column);
-      this.shrines.push({ index, t: s.t, position: pos.clone(), rotationY: yaw, lanterns: gate.lanterns, column, ring, active: false });
+      this.shrines.push({ index, t: s.t, zone: zoneAt(s.t), position: pos.clone(), rotationY: yaw, lanterns: gate.lanterns, column, ring, kind: 'dormant', active: false });
     });
 
     // Altar of the ten-thousand-year peach at the end of the trail
@@ -544,14 +584,14 @@ export class Level {
     return { points, mat };
   }
 
-  private makeColumnMaterial(): THREE.ShaderMaterial {
+  private makeColumnMaterial(color: THREE.Vector3): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       fog: false,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { uTime: { value: 0 }, uColor: { value: color.clone() }, uBoost: { value: 0 } },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
         varying float vY;
@@ -562,14 +602,16 @@ export class Level {
         }`,
       fragmentShader: /* glsl */ `
         uniform float uTime;
+        uniform vec3 uColor;
+        uniform float uBoost;
         varying vec2 vUv;
         varying float vY;
         void main() {
           float fade = (1.0 - smoothstep(0.0, 26.0, vY)) * smoothstep(0.0, 1.2, vY);
           float streak = 0.55 + 0.45 * sin(vUv.x * 40.0 + uTime * 1.5) * sin(vUv.x * 13.0 - uTime * 0.7);
           float rise = 0.6 + 0.4 * sin(vY * 1.2 - uTime * 3.0);
-          float a = fade * streak * rise * 0.22;
-          gl_FragColor = vec4(vec3(1.0, 0.62, 0.32) * a, a);
+          float a = fade * streak * rise * (0.22 + uBoost * 0.28);
+          gl_FragColor = vec4(uColor * a, a);
         }`,
     });
   }

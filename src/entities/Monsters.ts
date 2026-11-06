@@ -14,9 +14,34 @@ export interface MonsterContext {
   moving: boolean;
   harvesting: boolean;
   hunt: boolean;
+  /** Active 圣地护体 circle (real shrine being charged), or null. Monsters may not enter it. */
+  sanctuary: { x: number; z: number; r: number } | null;
   colliders: ColliderGrid;
   audio: AudioSystem;
   rng: () => number;
+}
+
+/** Keep monsters this far outside the sanctuary edge. */
+const SANCTUARY_MARGIN = 0.6;
+
+/** Push `pos` out to the sanctuary edge if it is inside. Returns true if it was moved. */
+export function pushOutOfSanctuary(pos: THREE.Vector3, s: MonsterContext['sanctuary'], margin = SANCTUARY_MARGIN): boolean {
+  if (!s) return false;
+  const r = s.r + margin;
+  let dx = pos.x - s.x;
+  let dz = pos.z - s.z;
+  const d = Math.hypot(dx, dz);
+  if (d >= r) return false;
+  if (d < 1e-4) {
+    dx = 1;
+    dz = 0;
+  } else {
+    dx /= d;
+    dz /= d;
+  }
+  pos.x = s.x + dx * r;
+  pos.z = s.z + dz * r;
+  return true;
 }
 
 const tmpA = new THREE.Vector3();
@@ -27,6 +52,39 @@ function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, shadow = true): TH
   const m = new THREE.Mesh(geo, mat);
   m.castShadow = shadow;
   return m;
+}
+
+/** Shared accent materials for monster-form identity marks (created once, reused by every instance). */
+let accentCache: ReturnType<typeof makeAccents> | null = null;
+function accents(): ReturnType<typeof makeAccents> {
+  return (accentCache ??= makeAccents());
+}
+function makeAccents() {
+  const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.5, ...p });
+  return {
+    // 紫陌
+    palmSclera: std({ color: 0x2a0a10, roughness: 0.4 }),
+    palmIris: std({ color: 0xffb040, emissive: 0xff3a1a, emissiveIntensity: 2.4 }),
+    slit: std({ color: 0x080002, roughness: 0.3 }),
+    peachMark: std({ color: 0xff6f9a, emissive: 0xd8204a, emissiveIntensity: 1.4 }),
+    bloodVein: std({ color: 0x8a0f1e, emissive: 0x5a0410, emissiveIntensity: 0.8 }),
+    mist: std({ color: 0xc9a2c8, emissive: 0x6a3a6e, emissiveIntensity: 0.35, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }),
+    fang: std({ color: 0xf2ead8, roughness: 0.35 }),
+    // 青鸾
+    plume: std({ color: 0x1f6f66, roughness: 0.7, side: THREE.DoubleSide, flatShading: true }),
+    plumeDark: std({ color: 0x0f2f33, roughness: 0.8, side: THREE.DoubleSide, flatShading: true }),
+    iceIris: std({ color: 0x9fe8ff, emissive: 0x3ad0ff, emissiveIntensity: 2.2 }),
+    beak: std({ color: 0x2b2a24, roughness: 0.35, metalness: 0.2 }),
+    featherMist: std({ color: 0x1a3a3c, emissive: 0x0c2a2a, emissiveIntensity: 0.3, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide }),
+    talon: std({ color: 0x050506, roughness: 0.25, metalness: 0.3 }),
+    goldThread: std({ color: 0xd9b25a, metalness: 0.85, roughness: 0.3, emissive: 0x4a3510, emissiveIntensity: 0.4 }),
+    // 金阙
+    gold: std({ color: 0xe0b450, metalness: 0.9, roughness: 0.28, emissive: 0x5a3c0c, emissiveIntensity: 0.5 }),
+    goldVein: std({ color: 0xffd36a, emissive: 0xffa820, emissiveIntensity: 1.6, metalness: 0.6, roughness: 0.3 }),
+    goldEye: std({ color: 0xffe08a, emissive: 0xffb000, emissiveIntensity: 3 }),
+    sigil: new THREE.MeshBasicMaterial({ color: 0xffc94a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+    inkPurple: std({ color: 0x1c1024, roughness: 0.85 }),
+  };
 }
 
 /** Steer `pos` toward target with tree avoidance; returns distance moved. */
@@ -175,6 +233,31 @@ export class Grabber {
       hand.scale.set(0.9, 1.3, 0.6);
       hand.position.set(0, -0.84, 0.02);
       lower.add(hand);
+      // 掌心竖瞳：暗红眼白 + 金红发光虹膜 + 黑色竖缝瞳
+      const fx = accents();
+      const palmEye = new THREE.Group();
+      palmEye.position.set(0, -0.85, 0.062);
+      const sclera = mesh(new THREE.SphereGeometry(0.042, 10, 8), fx.palmSclera, false);
+      sclera.scale.set(0.75, 1.15, 0.35);
+      const iris = mesh(new THREE.SphereGeometry(0.03, 10, 8), fx.palmIris, false);
+      iris.scale.set(0.8, 1.2, 0.3);
+      iris.position.z = 0.009;
+      const slit = mesh(new THREE.BoxGeometry(0.008, 0.062, 0.006), fx.slit, false);
+      slit.position.z = 0.017;
+      const lid = mesh(new THREE.TorusGeometry(0.036, 0.007, 4, 12), skin, false);
+      lid.scale.set(0.8, 1.25, 1);
+      lid.position.z = 0.006;
+      palmEye.add(sclera, iris, slit, lid);
+      lower.add(palmEye);
+      // 雾手：半透明藕荷薄纱裹住小臂，末端散成雾缕
+      const veil = mesh(limb(new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(0, -0.92, 0.03), 0.1, 0.17, 10), fx.mist, false);
+      lower.add(veil);
+      for (let w = 0; w < 3; w++) {
+        const wisp = mesh(new THREE.ConeGeometry(0.05, 0.32, 6, 1, true), fx.mist, false);
+        wisp.rotation.set(Math.PI + (w - 1) * 0.35, 0, side * (0.2 + w * 0.15));
+        wisp.position.set(side * (0.05 + w * 0.03), -1.0 - w * 0.05, -0.02 + w * 0.03);
+        lower.add(wisp);
+      }
       for (let f = 0; f < 4; f++) {
         const finger = mesh(limb(new THREE.Vector3(-0.045 + f * 0.03, -0.9, 0.03), new THREE.Vector3(-0.06 + f * 0.04, -1.08, 0.09), 0.016, 0.01, 5), skin, false);
         const claw = mesh(new THREE.ConeGeometry(0.012, 0.07, 4), m.claw, false);
@@ -201,6 +284,49 @@ export class Grabber {
     muzzle.scale.set(1.1, 0.8, 1.1);
     muzzle.position.set(0, 0.02, 0.18);
     this.head.add(skull, brow, muzzle);
+    // 额心桃花钿（五瓣 + 花心）+ 向下渗血纹
+    const fxH = accents();
+    const dian = new THREE.Group();
+    dian.position.set(0, 0.255, 0.175);
+    dian.rotation.x = -0.65;
+    const petalGeo = new THREE.SphereGeometry(0.016, 6, 4);
+    for (let p = 0; p < 5; p++) {
+      const a = (p / 5) * Math.PI * 2 + Math.PI / 2;
+      const petal = mesh(petalGeo, fxH.peachMark, false);
+      petal.scale.set(0.7, 1.2, 0.35);
+      petal.position.set(Math.cos(a) * 0.018, Math.sin(a) * 0.018, 0);
+      petal.rotation.z = a - Math.PI / 2;
+      dian.add(petal);
+    }
+    const core = mesh(new THREE.SphereGeometry(0.008, 6, 4), fxH.palmIris, false);
+    core.position.z = 0.004;
+    dian.add(core);
+    this.head.add(dian);
+    for (const [x, len, tilt] of [
+      [-0.012, 0.09, 0.15],
+      [0.014, 0.06, -0.2],
+    ] as const) {
+      const drip = mesh(new THREE.BoxGeometry(0.006, len, 0.004), fxH.bloodVein, false);
+      drip.position.set(x, 0.225 - len / 2, 0.205 - len * 0.15);
+      drip.rotation.set(-0.35, 0, tilt);
+      this.head.add(drip);
+    }
+    // 苍白肤面红裂纹（两颊）
+    for (const side of [-1, 1]) {
+      for (let c = 0; c < 2; c++) {
+        const crack = mesh(new THREE.BoxGeometry(0.005, 0.07 - c * 0.02, 0.004), fxH.bloodVein, false);
+        crack.position.set(side * (0.13 + c * 0.03), 0.04 - c * 0.02, 0.2 - c * 0.04);
+        crack.rotation.set(-0.2, side * 0.6, side * (0.5 + c * 0.4));
+        this.head.add(crack);
+      }
+    }
+    // 上颌獠牙（加强版尖牙）
+    for (const side of [-1, 1]) {
+      const fang = mesh(new THREE.ConeGeometry(0.016, 0.1, 5), fxH.fang, false);
+      fang.rotation.x = Math.PI - 0.15;
+      fang.position.set(side * 0.05, -0.07, 0.27);
+      this.head.add(fang);
+    }
     for (const side of [-1, 1]) {
       const ear = mesh(new THREE.SphereGeometry(0.07, 8, 6), skin, false);
       ear.scale.set(0.4, 1, 0.8);
@@ -221,7 +347,7 @@ export class Grabber {
     mouth.position.set(0, 0.0, 0.05);
     this.jaw.add(jawMesh, mouth);
     for (let t = 0; t < 6; t++) {
-      const tooth = mesh(new THREE.ConeGeometry(0.012, 0.05, 4), m.mask, false);
+      const tooth = mesh(new THREE.ConeGeometry(0.014, t === 0 || t === 5 ? 0.085 : 0.06, 4), m.mask, false);
       const a = -0.9 + (t / 5) * 1.8;
       tooth.position.set(Math.sin(a) * 0.09, 0.03, 0.06 + Math.cos(a) * 0.08);
       this.jaw.add(tooth);
@@ -236,6 +362,22 @@ export class Grabber {
     this.wander.copy(spawn);
     this.state = 'patrol';
     this.sated = 0;
+    this.lostTimer = 0;
+  }
+
+  /** Bait penalty: lunge `meters` toward the player (never closer than `minGap`) and commit to the chase. */
+  lurch(target: THREE.Vector3, meters: number, colliders: ColliderGrid, minGap = 2.5): void {
+    const dx = target.x - this.position.x;
+    const dz = target.z - this.position.z;
+    const d = Math.hypot(dx, dz);
+    const step = Math.min(meters, Math.max(0, d - minGap));
+    if (step > 0 && d > 1e-4) {
+      this.position.x += (dx / d) * step;
+      this.position.z += (dz / d) * step;
+      colliders.resolve(this.position, 0.45);
+      clampToCorridor(this.position, 0, 3);
+    }
+    if (this.state === 'patrol' || this.state === 'alert') this.state = 'chase';
     this.lostTimer = 0;
   }
 
@@ -285,13 +427,27 @@ export class Grabber {
         speed = base + (ctx.hunt ? 0.9 : 0);
         if (ctx.hunt && dist > 40) speed = 8.5; // summoned from afar: rush in
         if (this.lit) speed *= 0.45;
-        steer(this.position, chaseTarget(this.position, ctx.playerPos, tmpB), speed, dt, ctx.colliders, this.heading, 0.45, 3);
+        const sanc = ctx.sanctuary;
+        if (sanc && Math.hypot(this.position.x - sanc.x, this.position.z - sanc.z) < sanc.r + 6) {
+          // 圣地护体: prowl along the rim, staying on the player's side of the circle.
+          let ax = ctx.playerPos.x - sanc.x;
+          let az = ctx.playerPos.z - sanc.z;
+          const al = Math.hypot(ax, az);
+          if (al < 0.3) {
+            ax = this.position.x - sanc.x;
+            az = this.position.z - sanc.z;
+          }
+          const n = Math.hypot(ax, az) || 1;
+          const rr = sanc.r + SANCTUARY_MARGIN + 0.1;
+          tmpB.set(sanc.x + (ax / n) * rr, 0, sanc.z + (az / n) * rr);
+        } else chaseTarget(this.position, ctx.playerPos, tmpB);
+        steer(this.position, tmpB, speed, dt, ctx.colliders, this.heading, 0.45, 3);
         this.growlTimer -= dt;
         if (this.growlTimer <= 0 && dist < 30) {
           this.growlTimer = 2.5 + ctx.rng() * 2.5;
           ctx.audio.chaserGrowl(this.position);
         }
-        if (dist < 1.25) {
+        if (dist < 1.25 && !ctx.sanctuary) {
           caught = true;
           this.state = 'retreat';
           this.stateTimer = 5;
@@ -318,6 +474,8 @@ export class Grabber {
         break;
       }
     }
+    // 圣地护体: never inside the circle, whatever the state.
+    pushOutOfSanctuary(this.position, ctx.sanctuary);
     this.speedNow += (speed - this.speedNow) * Math.min(1, dt * 6);
     this.root.rotation.y = this.heading.v;
     this.separateFrom(allies);
@@ -442,11 +600,26 @@ export class Caller {
     robeGeo.computeVertexNormals();
     const robe = mesh(robeGeo, m.robe);
     this.root.add(robe);
-    // long neck
-    this.head.position.set(0, 2.3, 0);
+    // long neck — 青鸾怪物态：鸟颈异常拉长（S 形两段）
+    const fq = accents();
+    this.head.position.set(0, 2.55, 0);
     this.root.add(this.head);
-    const neck = mesh(limb(new THREE.Vector3(0, -0.1, 0), new THREE.Vector3(0, 0.35, 0.04), 0.06, 0.05, 8), m.grabberSkin);
-    this.head.add(neck);
+    const neckLow = mesh(limb(new THREE.Vector3(0, -0.4, -0.04), new THREE.Vector3(0, -0.02, 0.07), 0.07, 0.05, 8), m.grabberSkin);
+    const neck = mesh(limb(new THREE.Vector3(0, -0.02, 0.07), new THREE.Vector3(0, 0.38, 0.02), 0.05, 0.045, 8), m.grabberSkin);
+    this.head.add(neckLow, neck);
+    // 颈羽领：颈根一圈细羽
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const pivot = new THREE.Group();
+      pivot.position.y = -0.2;
+      pivot.rotation.y = a;
+      const f = mesh(new THREE.ConeGeometry(0.035, 0.22, 4), i % 2 ? fq.plumeDark : fq.plume, false);
+      f.scale.z = 0.3;
+      f.position.set(0, 0, 0.07);
+      f.rotation.x = Math.PI / 2 + 0.9;
+      pivot.add(f);
+      this.head.add(pivot);
+    }
     // mask: pale elongated monkey face
     const mask = mesh(new THREE.SphereGeometry(0.22, 18, 14), m.mask);
     mask.scale.set(0.95, 1.25, 0.75);
@@ -462,6 +635,13 @@ export class Caller {
       eye.scale.set(1, 1.5, 0.5);
       eye.position.set(side * 0.08, 0.62, 0.2);
       this.head.add(eye);
+      // 冰蓝鸟瞳 + 竖瞳缝
+      const iris = mesh(new THREE.SphereGeometry(0.028, 10, 8), fq.iceIris, false);
+      iris.scale.set(1, 1.35, 0.4);
+      iris.position.set(side * 0.08, 0.62, 0.218);
+      const pupil = mesh(new THREE.BoxGeometry(0.007, 0.05, 0.005), fq.talon, false);
+      pupil.position.set(side * 0.08, 0.62, 0.23);
+      this.head.add(iris, pupil);
       const brow = mesh(new THREE.TorusGeometry(0.06, 0.012, 4, 10, Math.PI), m.maskHole, false);
       brow.position.set(side * 0.08, 0.68, 0.19);
       this.head.add(brow);
@@ -470,6 +650,42 @@ export class Caller {
     smile.position.set(0, 0.47, 0.19);
     smile.rotation.z = Math.PI + 0.15;
     this.head.add(smile);
+    // 弯喙：上喙前伸 + 下勾尖
+    const beak = mesh(new THREE.ConeGeometry(0.045, 0.17, 6), fq.beak);
+    beak.scale.set(1, 1, 0.75);
+    beak.rotation.x = Math.PI / 2 + 0.12;
+    beak.position.set(0, 0.545, 0.27);
+    const hook = mesh(new THREE.ConeGeometry(0.018, 0.07, 5), fq.beak, false);
+    hook.rotation.x = Math.PI - 0.5;
+    hook.position.set(0, 0.505, 0.345);
+    const beakLine = mesh(new THREE.TorusGeometry(0.05, 0.004, 3, 10, Math.PI * 0.8), fq.goldThread, false);
+    beakLine.rotation.set(0, Math.PI / 2, Math.PI * 0.6);
+    beakLine.position.set(0, 0.54, 0.25);
+    this.head.add(beak, hook, beakLine);
+    // 肩羽环：两层青羽向外下披，金丝描边一圈
+    for (let tier = 0; tier < 2; tier++) {
+      const count = 16 - tier * 4;
+      for (let i = 0; i < count; i++) {
+        const a = ((i + tier * 0.5) / count) * Math.PI * 2;
+        const pivot = new THREE.Group();
+        pivot.position.y = 2.12 - tier * 0.12;
+        pivot.rotation.y = a;
+        const f = mesh(new THREE.ConeGeometry(0.075 + tier * 0.015, 0.46 + tier * 0.12, 4), (i + tier) % 2 ? fq.plumeDark : fq.plume);
+        f.scale.z = 0.25;
+        f.position.set(0, -0.05, 0.3 + tier * 0.04);
+        f.rotation.x = Math.PI / 2 + 0.75 + tier * 0.15;
+        pivot.add(f);
+        this.root.add(pivot);
+      }
+    }
+    const collarGold = mesh(new THREE.TorusGeometry(0.33, 0.012, 4, 28), fq.goldThread, false);
+    collarGold.rotation.x = Math.PI / 2;
+    collarGold.position.y = 2.06;
+    this.root.add(collarGold);
+    // 下摆溶入青黑羽雾
+    const hemMist = mesh(new THREE.CylinderGeometry(0.5, 0.75, 0.6, 20, 1, true), fq.featherMist, false);
+    hemMist.position.y = 0.22;
+    this.root.add(hemMist);
     // long arms hanging past the knees
     for (const side of [-1, 1]) {
       const arm = new THREE.Group();
@@ -478,6 +694,11 @@ export class Caller {
       arm.add(mesh(limb(new THREE.Vector3(side * 0.08, -1.0, 0.05), new THREE.Vector3(side * 0.1, -1.55, 0.12), 0.035, 0.028, 6), m.grabberSkin));
       for (let f = 0; f < 4; f++) {
         arm.add(mesh(limb(new THREE.Vector3(side * 0.1, -1.55, 0.12), new THREE.Vector3(side * (0.06 + f * 0.03), -1.9, 0.14 + f * 0.01), 0.012, 0.006, 4), m.grabberSkin, false));
+        // 黑长利爪
+        const talon = mesh(new THREE.ConeGeometry(0.011, 0.2, 4), fq.talon, false);
+        talon.rotation.x = Math.PI - 0.45;
+        talon.position.set(side * (0.06 + f * 0.03), -1.99, 0.18 + f * 0.01);
+        arm.add(talon);
       }
       this.arms.push(arm);
       this.root.add(arm);
@@ -588,6 +809,7 @@ export class Caller {
         break;
       }
     }
+    if (this.state !== 'dormant') pushOutOfSanctuary(this.root.position, ctx.sanctuary, 1.5);
     // presentation: rises from / sinks into the earth
     this.root.position.y = (this.visibleAmt - 1) * 2.6;
     this.root.rotation.y = this.heading.v;
@@ -711,6 +933,122 @@ export class Howler {
       this.head.add(mesh(limb(a1, a4, 0.05, 0.02, 5), m.howlerBone));
       this.head.add(mesh(limb(a2, a2.clone().add(new THREE.Vector3(side * 0.5, 0.3, 0.2)), 0.03, 0.01, 4), m.howlerBone));
     }
+    const fj = accents();
+    // 裂冠：残缺凤冠金环（缺口）+ 高低不齐冠尖，一枚断片歪斜
+    const crown = new THREE.Group();
+    crown.position.set(0, 0.47, 0.3);
+    crown.rotation.x = -0.12;
+    const band = mesh(new THREE.TorusGeometry(0.3, 0.035, 5, 20, Math.PI * 1.55), fj.gold);
+    band.rotation.set(Math.PI / 2, 0, Math.PI * 0.6);
+    crown.add(band);
+    const spikeH = [0.32, 0.18, 0.46, 0.22, 0.38, 0.12, 0.28];
+    spikeH.forEach((h, i) => {
+      const a = Math.PI * 0.6 + (i / (spikeH.length - 1)) * Math.PI * 1.5;
+      const spike = mesh(new THREE.ConeGeometry(0.045, h, 4), fj.gold, false);
+      spike.position.set(Math.cos(a) * 0.3, h / 2, -Math.sin(a) * 0.3);
+      spike.rotation.set(Math.sin(i * 3.1) * 0.25, 0, Math.cos(i * 2.3) * 0.25);
+      crown.add(spike);
+      if (i % 3 === 0) {
+        const gem = mesh(new THREE.OctahedronGeometry(0.035), fj.goldEye, false);
+        gem.position.set(Math.cos(a) * 0.3, 0.02, -Math.sin(a) * 0.32);
+        crown.add(gem);
+      }
+    });
+    const shard = mesh(new THREE.ConeGeometry(0.05, 0.3, 4), fj.gold, false);
+    shard.position.set(-0.36, 0.05, 0.18);
+    shard.rotation.set(0.4, 0, 1.1);
+    crown.add(shard);
+    this.head.add(crown);
+    // 半脸金纹：沿颅骨右侧表面爬行的金色裂纹
+    const surf = (u: number, v: number) =>
+      new THREE.Vector3(0.4 * Math.sin(u) * Math.cos(v), 0.425 * Math.sin(v), 0.75 * Math.cos(u) * Math.cos(v)).multiplyScalar(1.03).add(new THREE.Vector3(0, 0.1, 0.35));
+    const veinPaths: [number, number][][] = [
+      [[0.15, 0.55], [0.35, 0.4], [0.5, 0.45], [0.75, 0.3], [1.0, 0.35], [1.3, 0.15]],
+      [[0.35, 0.4], [0.45, 0.15], [0.7, 0.05], [0.95, -0.1], [1.25, -0.2]],
+      [[0.45, 0.15], [0.4, -0.15], [0.6, -0.35], [0.85, -0.45]],
+      [[0.75, 0.3], [0.85, 0.6], [1.0, 0.8]],
+      [[0.7, 0.05], [0.55, -0.05]],
+    ];
+    for (const path of veinPaths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        const [u0, v0] = path[i]!;
+        const [u1, v1] = path[i + 1]!;
+        this.head.add(mesh(limb(surf(u0, v0), surf(u1, v1), 0.018, 0.012, 4), fj.goldVein, false));
+      }
+    }
+    // 金瞳强调：右侧主眼套金环
+    const goldRing = mesh(new THREE.TorusGeometry(0.1, 0.018, 4, 14), fj.goldVein, false);
+    goldRing.position.set(0.22, 0.25, 0.9);
+    goldRing.rotation.set(-0.2, 0.45, 0);
+    const goldIris = mesh(new THREE.SphereGeometry(0.05, 8, 6), fj.goldEye, false);
+    goldIris.position.set(0.23, 0.25, 0.93);
+    this.head.add(goldRing, goldIris);
+    // 背后召妖符阵：金线圆阵（双环 + 八卦刻度 + 六芒 + 符点）
+    const sigil = new THREE.Group();
+    sigil.name = 'howlerSigil';
+    sigil.position.set(0, 5.4, -1.3);
+    sigil.rotation.x = -0.15;
+    const ringGeoOuter = new THREE.TorusGeometry(2.3, 0.035, 3, 64);
+    const ringGeoInner = new THREE.TorusGeometry(1.75, 0.025, 3, 56);
+    sigil.add(mesh(ringGeoOuter, fj.sigil, false), mesh(ringGeoInner, fj.sigil, false));
+    sigil.add(mesh(new THREE.TorusGeometry(0.6, 0.03, 3, 32), fj.sigil, false));
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const tick = mesh(new THREE.BoxGeometry(0.03, i % 3 === 0 ? 0.5 : 0.25, 0.01), fj.sigil, false);
+      const r = i % 3 === 0 ? 2.02 : 2.12;
+      tick.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
+      tick.rotation.z = a - Math.PI / 2;
+      sigil.add(tick);
+    }
+    for (let tri = 0; tri < 2; tri++) {
+      for (let k = 0; k < 3; k++) {
+        const a0 = Math.PI / 2 + tri * Math.PI + (k / 3) * Math.PI * 2;
+        const a1 = a0 + (Math.PI * 2) / 3;
+        const p0 = new THREE.Vector2(Math.cos(a0), Math.sin(a0)).multiplyScalar(1.75);
+        const p1 = new THREE.Vector2(Math.cos(a1), Math.sin(a1)).multiplyScalar(1.75);
+        const edge = mesh(new THREE.BoxGeometry(p0.distanceTo(p1), 0.03, 0.01), fj.sigil, false);
+        edge.position.set((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, 0);
+        edge.rotation.z = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        sigil.add(edge);
+      }
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const glyph = new THREE.Group();
+      glyph.position.set(Math.cos(a) * 2.6, Math.sin(a) * 2.6, 0);
+      glyph.rotation.z = a;
+      glyph.add(mesh(new THREE.BoxGeometry(0.22, 0.025, 0.01), fj.sigil, false));
+      const bar = mesh(new THREE.BoxGeometry(0.025, 0.18, 0.01), fj.sigil, false);
+      bar.position.x = (i % 2 ? 0.06 : -0.06);
+      glyph.add(bar);
+      const dot = mesh(new THREE.CircleGeometry(0.035, 8), fj.sigil, false);
+      dot.position.set(0.12, 0.08, 0);
+      glyph.add(dot);
+      sigil.add(glyph);
+    }
+    this.root.add(sigil);
+    // 金丝边：残破华服躯干金绣环 + 墨紫披帛
+    const trim = new THREE.Group();
+    trim.position.copy(torso.position);
+    trim.rotation.copy(torso.rotation);
+    for (const [r, y, arc] of [
+      [0.98, 1.2, Math.PI * 1.7],
+      [0.88, 2.1, Math.PI * 2],
+      [0.53, 2.7, Math.PI * 1.4],
+    ] as const) {
+      const ring = mesh(new THREE.TorusGeometry(r, 0.03, 4, 32, arc), fj.gold, false);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = y;
+      trim.add(ring);
+    }
+    const sash = mesh(new THREE.CylinderGeometry(0.9, 1.05, 1.3, 14, 1, true, Math.PI * 0.75, Math.PI * 1.5), fj.inkPurple);
+    sash.position.y = 0.95;
+    trim.add(sash);
+    const sashEdge = mesh(new THREE.TorusGeometry(1.05, 0.025, 3, 28, Math.PI * 1.5), fj.gold, false);
+    sashEdge.rotation.set(Math.PI / 2, 0, Math.PI * 0.75 - Math.PI / 2);
+    sashEdge.position.y = 0.3;
+    trim.add(sashEdge);
+    this.root.add(trim);
     // arms dragging to the ground
     for (const side of [-1, 1]) {
       const arm = new THREE.Group();
@@ -719,6 +1057,16 @@ export class Howler {
       arm.add(mesh(limb(new THREE.Vector3(side * 0.6, -2.4, 0.6), new THREE.Vector3(side * 0.7, -4.6, 1.2), 0.12, 0.07, 8), hide));
       for (let f = 0; f < 4; f++) {
         arm.add(mesh(limb(new THREE.Vector3(side * 0.7, -4.6, 1.2), new THREE.Vector3(side * (0.5 + f * 0.12), -5.05, 1.5 + f * 0.05), 0.04, 0.015, 4), m.howlerBone, false));
+      }
+      // 金绣袖口
+      for (const [y, x, z, r] of [
+        [-2.4, 0.6, 0.6, 0.15],
+        [-4.3, 0.69, 1.12, 0.1],
+      ] as const) {
+        const cuff = mesh(new THREE.TorusGeometry(r, 0.022, 4, 16), fj.gold, false);
+        cuff.position.set(side * x, y, z);
+        cuff.rotation.x = Math.PI / 2 - 0.25;
+        arm.add(cuff);
       }
       this.arms.push(arm);
       this.root.add(arm);
@@ -781,6 +1129,7 @@ export class Howler {
         const d = this.target.clone().sub(this.root.position).setY(0);
         const len = d.length();
         if (len > 0.5) this.root.position.addScaledVector(d.normalize(), Math.min(len, dt * 5));
+        pushOutOfSanctuary(this.root.position, ctx.sanctuary, 4);
         this.root.position.y = 0;
         break;
       }

@@ -109,34 +109,56 @@ interface HarvestLoop {
 /** Formant keyframe: t, F1, F2, F3, voiced amplitude, aspiration (noise) amplitude. */
 type FormantKey = [number, number, number, number, number, number];
 
-// Mandarin "猴哥" (hóu gē): [h] -> [ou] (tone 2 rising) | gap | [g] burst -> [ɤ] (tone 1 high level)
+// Mandarin "猴哥" (hóu gē), sung as a breathy, coaxing female whisper-call:
+// [h] (long breath) -> [ou] (tone 2 rising, drawn out) | gap | [g] -> [ɤ] (tone 1 high level, held) -> sigh.
+// Formants sit ~15% above an adult male's (shorter vocal tract).
 const CALLER_KEYS: FormantKey[] = [
-  [0.0, 500, 900, 2400, 0.0, 0.0],
-  [0.02, 500, 900, 2400, 0.0, 0.9], // h: aspiration through the vowel's formants
-  [0.09, 500, 900, 2400, 0.15, 0.7],
-  [0.13, 500, 900, 2400, 1.0, 0.1], // o
-  [0.3, 470, 870, 2380, 1.0, 0.05],
-  [0.5, 330, 760, 2300, 0.9, 0.05], // -> u
-  [0.56, 320, 750, 2300, 0.0, 0.0],
-  [0.64, 400, 1300, 2300, 0.0, 0.0], // gap / g closure (velar pinch)
-  [0.665, 430, 1250, 2400, 0.7, 0.05], // g release
-  [0.72, 460, 1100, 2500, 1.0, 0.05], // ɤ held
-  [1.25, 460, 1100, 2500, 0.95, 0.1],
-  [1.45, 450, 1080, 2500, 0.2, 0.5], // breathy trail-off
-  [1.62, 450, 1080, 2500, 0.0, 0.0],
+  [0.0, 580, 1040, 2800, 0.0, 0.0],
+  [0.03, 580, 1040, 2800, 0.0, 1.0], // h: long breathy onset through the vowel's formants
+  [0.11, 580, 1040, 2800, 0.25, 0.75],
+  [0.16, 580, 1040, 2800, 0.95, 0.25], // o
+  [0.32, 550, 1000, 2780, 1.0, 0.2],
+  [0.52, 380, 860, 2700, 0.85, 0.2], // -> u (slow, lingering glide)
+  [0.57, 370, 850, 2700, 0.0, 0.05],
+  [0.63, 460, 1500, 2700, 0.0, 0.0], // gap / g closure (velar pinch)
+  [0.66, 500, 1430, 2850, 0.55, 0.15], // g release (soft)
+  [0.74, 530, 1260, 2950, 1.0, 0.2], // ɤ held
+  [1.22, 530, 1260, 2950, 0.9, 0.3],
+  [1.42, 520, 1240, 2950, 0.3, 0.75], // long breathy sigh-out
+  [1.62, 520, 1240, 2950, 0.0, 0.0],
 ];
+// Female register (~195-280 Hz). Tone 2 rises slowly with a small scoop, tone 1
+// stays high and level; the tail barely sags so it never reads as tone 4.
 const CALLER_PITCH: Array<[number, number]> = [
-  [0.0, 106],
-  [0.13, 106],
-  [0.2, 104],
-  [0.55, 140], // tone 2: rising
-  [0.64, 152],
-  [0.68, 156],
-  [1.3, 155], // tone 1: high and flat
-  [1.62, 148],
+  [0.0, 204],
+  [0.16, 204],
+  [0.24, 197],
+  [0.52, 246], // tone 2: rising
+  [0.6, 258],
+  [0.7, 270],
+  [1.0, 276], // tone 1: high and flat
+  [1.3, 274],
+  [1.62, 262],
 ];
-const FORMANT_BW = [85, 110, 160];
-const FORMANT_LEVEL = [1.0, 0.8, 0.5];
+// F1..F3 follow CALLER_KEYS; F4 is a fixed "air" band that carries the breath and
+// gives the HRTF plenty of >3 kHz content to work with (front/back cues live there).
+const FORMANT_BW = [110, 140, 210, 520];
+const FORMANT_LEVEL = [1.0, 0.85, 0.6, 0.38];
+const CALLER_F4 = 4300;
+/** Vibrato depth as a fraction of f0: small during "hóu", blooming on the held "gē". */
+const CALLER_VIBRATO: Array<[number, number]> = [
+  [0.0, 0.004],
+  [0.5, 0.008],
+  [0.8, 0.012],
+  [1.3, 0.026],
+  [1.62, 0.03],
+];
+/** Lift above the monster's given position so it seems to lean in from over the shoulder. */
+const CALLER_LIFT = 0.35;
+/** Extra high-shelf cut (dB) when the caller is directly behind the listener (exaggerates HRTF rear cue). */
+const CALLER_REAR_SHADOW_DB = -7;
+/** SpeechSynthesis cannot be routed through the HRTF panner, so it stays a barely-there, late double. */
+const CALLER_TTS_VOLUME = 0.06;
 
 export class AudioSystem {
   muted = false;
@@ -159,6 +181,7 @@ export class AudioSystem {
   // shared resources
   private noiseBuf!: AudioBuffer;
   private distCurve!: Float32Array<ArrayBuffer>;
+  /** Breathy (steep-tilt) glottal source for the Caller's female voice. */
   private glottal!: PeriodicWave;
 
   // continuous layers
@@ -185,6 +208,7 @@ export class AudioSystem {
   private lastTargets = new WeakMap<AudioParam, number>();
   private harvest: HarvestLoop | null = null;
   private readonly listenerPos = new THREE.Vector3();
+  private readonly listenerFwd = new THREE.Vector3(0, 0, -1);
   private stepPhase = 0.7;
   private nextBeat = 0;
   private nextDrum = 0;
@@ -196,6 +220,8 @@ export class AudioSystem {
   private duckUntil = 0;
   private lastPlay = new Map<string, number>();
   private callerStart = -10;
+  /** Live rear-shadow filter of the current Caller call, re-aimed every setListener(). */
+  private callerRear: { shelf: BiquadFilterNode; pos: THREE.Vector3; until: number } | null = null;
 
   // ------------------------------------------------------------------ setup
 
@@ -278,11 +304,11 @@ export class AudioSystem {
       this.distCurve[i] = Math.tanh(k * x) / Math.tanh(k);
     }
 
-    // glottal-ish source spectrum (~ -8 dB/oct)
+    // breathy glottal source (~ -11 dB/oct): weak upper harmonics, the noise carries the top end
     const H = 48;
     const real = new Float32Array(H);
     const imag = new Float32Array(H);
-    for (let h = 1; h < H; h++) imag[h] = 1 / Math.pow(h, 1.3);
+    for (let h = 1; h < H; h++) imag[h] = 1 / Math.pow(h, 1.85);
     this.glottal = ctx.createPeriodicWave(real, imag);
 
     this.buildAmbience();
@@ -671,7 +697,27 @@ export class AudioSystem {
         l.setPosition?.(position.x, position.y, position.z);
         l.setOrientation?.(fx, fy, fz, 0, 1, 0);
       }
+      this.listenerFwd.set(fx, fy, fz);
+      this.aimCallerRear(fx, fz);
     });
+  }
+
+  /** Deepens the Caller's high-frequency rear shadow the more it sits behind the listener's head. */
+  private aimCallerRear(fx: number, fz: number): void {
+    const r = this.callerRear;
+    if (!r || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (t > r.until) {
+      this.callerRear = null;
+      return;
+    }
+    const dx = r.pos.x - this.listenerPos.x;
+    const dz = r.pos.z - this.listenerPos.z;
+    const fl = Math.hypot(fx, fz);
+    const dl = Math.hypot(dx, dz);
+    // 1 = straight behind, 0 = to the side or in front
+    const behind = fl > 1e-4 && dl > 1e-4 ? clamp(-(fx * dx + fz * dz) / (fl * dl), 0, 1) : 0;
+    r.shelf.gain.setTargetAtTime(CALLER_REAR_SHADOW_DB * behind, t, 0.06);
   }
 
   setMuted(muted: boolean): void {
@@ -1075,16 +1121,32 @@ export class AudioSystem {
       this.callerStart = now;
       const t0 = now + 0.04;
       const shot = new Shot(this.transient);
-      const pan = this.panner(shot, position, 4, 1.1, this.voice);
-      const out = this.gain(shot, 1, pan);
-      this.send(shot, out, 0.6);
+      // Everything audible goes through ONE HRTF panner: no dry/stereo bypass, so the
+      // ears get an unambiguous "behind me" cue. Source lifted slightly over head height.
+      const pos = new THREE.Vector3(position.x, position.y + CALLER_LIFT, position.z);
+      // ref 6 / rolloff 0.9: ~0.53 gain at 12 m, ~0.85 at 7 m -> present at the spawn
+      // distance and clearly louder as it creeps in.
+      const pan = this.panner(shot, pos, 6, 0.9, this.voice);
+      // rear head-shadow: a high shelf that deepens while the caller is behind (re-aimed per frame)
+      const shelf = this.filt(shot, 'highshelf', 3200, 0.7, pan);
+      shelf.gain.value = 0;
+      // gentle presence lift so the breath (and the HRTF's >3 kHz cues) cut through the ambience
+      const air = this.filt(shot, 'peaking', 5200, 0.8, shelf);
+      air.gain.value = 4;
+      const out = this.gain(shot, 1, air);
+      this.callerRear = { shelf, pos, until: t0 + CALLER_DURATION + 0.3 };
+      this.aimCallerRear(this.listenerFwd.x, this.listenerFwd.z);
+      // modest, slightly late reverb send: room tail without smearing the direction
+      const wet = this.gain(shot, 0, this.reverb);
+      wet.gain.setValueAtTime(0, t0);
+      wet.gain.linearRampToValueAtTime(0.22, t0 + 0.25);
+      wet.gain.linearRampToValueAtTime(0.38, t0 + 1.2);
+      out.connect(wet);
 
-      // dry, slightly breathy main voice
-      this.formantVoice(shot, t0, 1.0, 1.0, 0.18, this.gain(shot, 0.9, out));
-      // detuned whisper double, ~40 ms late
-      this.formantVoice(shot, t0 + 0.042, 0.93, 0.15, 0.95, this.gain(shot, 0.55, out));
-      // faint octave-down undertone: subtly wrong
-      this.formantVoice(shot, t0 + 0.012, 0.5, 0.6, 0.0, this.gain(shot, 0.22, out));
+      // breathy, coaxing main voice
+      this.formantVoice(shot, t0, 1.0, 0.85, 0.5, this.gain(shot, 0.85, out));
+      // close whisper double, a hair sharp and ~35 ms late (intimate, slightly unreal)
+      this.formantVoice(shot, t0 + 0.035, 1.012, 0.08, 1.0, this.gain(shot, 0.5, out));
 
       this.speak(position);
       return CALLER_DURATION;
@@ -1094,27 +1156,28 @@ export class AudioSystem {
   private formantVoice(shot: Shot, t0: number, pitchMul: number, voiced: number, breath: number, out: AudioNode): void {
     const ctx = this.ctx!;
     const keys = CALLER_KEYS;
-    const tEnd = t0 + keys[keys.length - 1][0] + 0.05;
+    const tLast = keys[keys.length - 1][0];
+    const tEnd = t0 + tLast + 0.05;
 
-    // formant bank
-    const makeup = this.gain(shot, 6, out);
+    // formant bank: F1..F3 keyframed, F4 fixed "air"
+    const makeup = this.gain(shot, 6.5, out);
     const input = this.gain(shot, 1);
     const formants: BiquadFilterNode[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < FORMANT_BW.length; i++) {
+      const f0 = i < 3 ? keys[0][i + 1] : CALLER_F4;
       const lvl = this.gain(shot, FORMANT_LEVEL[i], makeup);
-      const f = this.filt(shot, 'bandpass', keys[0][i + 1], keys[0][i + 1] / FORMANT_BW[i], lvl);
+      const f = this.filt(shot, 'bandpass', f0, f0 / FORMANT_BW[i], lvl);
       input.connect(f);
       formants.push(f);
     }
 
-    // glottal source with jittered pitch contour + vibrato
+    // breathy glottal source with jittered pitch contour + growing vibrato
     const src = ctx.createOscillator();
     src.setPeriodicWave(this.glottal);
     const vGain = this.gain(shot, 0, input);
     src.connect(vGain);
     const fq = src.frequency;
-    const pitchAt = (tt: number): number => {
-      const P = CALLER_PITCH;
+    const interp = (P: Array<[number, number]>, tt: number): number => {
       if (tt <= P[0][0]) return P[0][1];
       for (let i = 1; i < P.length; i++) {
         if (tt <= P[i][0]) {
@@ -1125,19 +1188,26 @@ export class AudioSystem {
       }
       return P[P.length - 1][1];
     };
-    fq.setValueAtTime(pitchAt(0) * pitchMul, t0);
+    fq.setValueAtTime(interp(CALLER_PITCH, 0) * pitchMul, t0);
     let drift = 0;
-    for (let tt = 0.025; tt <= keys[keys.length - 1][0] + 0.001; tt += 0.025) {
-      drift = drift * 0.6 + (Math.random() - 0.5) * 0.03;
-      fq.linearRampToValueAtTime(pitchAt(tt) * pitchMul * (1 + drift), t0 + tt);
+    for (let tt = 0.025; tt <= tLast + 0.001; tt += 0.025) {
+      drift = drift * 0.7 + (Math.random() - 0.5) * 0.012; // gentle, not gruff
+      fq.linearRampToValueAtTime(interp(CALLER_PITCH, tt) * pitchMul * (1 + drift), t0 + tt);
     }
     shot.play(src, t0, tEnd);
-    this.osc(shot, 'sine', 5.2 * rand(0.9, 1.1), t0, tEnd, this.gain(shot, 1.3 * pitchMul, fq));
+    // vibrato: ~5.6 Hz, depth (Hz) automated so it blooms on the held "gē"
+    const vib = this.gain(shot, 0, fq);
+    for (const [vt, depth] of CALLER_VIBRATO) {
+      const hz = depth * interp(CALLER_PITCH, vt) * pitchMul;
+      if (vt === 0) vib.gain.setValueAtTime(hz, t0);
+      else vib.gain.linearRampToValueAtTime(hz, t0 + vt);
+    }
+    this.osc(shot, 'sine', 5.6 * rand(0.95, 1.05), t0, tEnd, vib);
 
-    // breath / aspiration noise into formants
+    // breath / aspiration noise into formants (high-passed: airy, not hissy-low)
     const amt = Math.max(voiced, breath);
     const bGain = this.gain(shot, 0, input);
-    const bHp = this.filt(shot, 'highpass', 400, 0.7, bGain);
+    const bHp = this.filt(shot, 'highpass', 900, 0.7, bGain);
     this.noise(shot, t0, tEnd, bHp);
 
     // keyframed formants and amplitudes
@@ -1155,9 +1225,10 @@ export class AudioSystem {
           q.linearRampToValueAtTime(fs[i] / FORMANT_BW[i], at);
         }
       }
-      // shimmer on amplitude makes it waver unnaturally
-      const wob = v > 0 ? rand(0.92, 1.05) : 1;
-      const b = v * breath * wob + asp * amt;
+      // slight amplitude sway: languid rather than steady
+      const wob = v > 0 ? rand(0.94, 1.04) : 1;
+      // breath rides on the voicing (breathy phonation) plus the keyed aspiration
+      const b = v * breath * 0.55 * wob + asp * amt * 0.8;
       if (idx === 0) {
         vGain.gain.setValueAtTime(v * voiced, at);
         bGain.gain.setValueAtTime(b, at);
@@ -1167,31 +1238,51 @@ export class AudioSystem {
       }
     });
 
-    // /g/ release: brief, low-energy voiced burst
+    // /g/ release: brief, soft voiced burst
     const gT = t0 + 0.64;
-    const gBp = this.filt(shot, 'bandpass', 2000, 1.5, out);
+    const gBp = this.filt(shot, 'bandpass', 2300, 1.5, out);
     const gG = this.gain(shot, 0, gBp);
-    this.noise(shot, gT, this.env(gG.gain, gT, 0.003, 0.15 * amt, 0.022), gG);
+    this.noise(shot, gT, this.env(gG.gain, gT, 0.004, 0.1 * amt, 0.02), gG);
   }
 
+  /**
+   * Optional SpeechSynthesis double of "猴哥". It cannot be routed into Web Audio (so it
+   * can't be HRTF-panned) and plays dead-centre "inside the head", which fights the
+   * behind-you cue. So: Chinese *female* voices only (else silent), very quiet, and it
+   * always lands after the procedural voice (precedence effect keeps localisation on
+   * the panned voice).
+   */
   private speak(position: THREE.Vector3): void {
+    if (CALLER_TTS_VOLUME <= 0) return;
     try {
       const ss = window.speechSynthesis;
       if (!ss || typeof SpeechSynthesisUtterance === 'undefined') return;
       const voices = ss.getVoices();
       if (!voices || voices.length === 0) return;
-      const zh = voices.filter((v) => /^zh/i.test(v.lang));
+      const zh = voices.filter((v) => /^(zh|cmn)/i.test(v.lang));
       if (zh.length === 0) return; // never speak it with a non-Chinese voice
-      const pick = zh.find((v) => /^zh[-_]cn/i.test(v.lang)) ?? zh[0];
+      const female =
+        /female|女|ting-?ting|mei-?jia|sin-?ji|xiao ?xiao|xiao ?yi|xiao ?han|xiao ?mo|xiao ?rui|xiao ?shuang|xiao ?meng|xiao ?zhen|hui ?hui|yao ?yao|han ?han|li-?mu|yu-?shu|shan-?shan|ya-?ling|google\s*(普通话|國語|粤語)/i;
+      const male = /\bmale\b|男|kangkang|yunxi|yunyang|yunjian|yunze|yunfeng/i;
+      const fem = zh.filter((v) => female.test(v.name) && !male.test(v.name));
+      if (fem.length === 0) return; // no known female zh voice: stay silent rather than a male TTS
+      const pick = fem.find((v) => /^zh[-_]cn/i.test(v.lang)) ?? fem[0];
       const u = new SpeechSynthesisUtterance('猴哥');
-      u.lang = 'zh-CN';
+      u.lang = pick.lang || 'zh-CN';
       u.voice = pick;
-      u.rate = 0.7;
-      u.pitch = 0.1;
+      u.rate = 0.62; // drawn out
+      u.pitch = 1.25; // light, feminine
       const d = this.listenerPos.distanceTo(position);
-      u.volume = 0.5 * clamp(5 / Math.max(5, Number.isFinite(d) ? d : 5), 0.1, 1);
+      u.volume = CALLER_TTS_VOLUME * clamp(6 / Math.max(6, Number.isFinite(d) ? d : 6), 0.3, 1);
       ss.cancel();
-      ss.speak(u);
+      // start a beat after the panned voice so the ear locks onto that one first
+      window.setTimeout(() => {
+        try {
+          if (this.ok()) ss.speak(u);
+        } catch {
+          /* ignore */
+        }
+      }, 120);
     } catch {
       /* speech synthesis unavailable */
     }

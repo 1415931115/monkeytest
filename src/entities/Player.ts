@@ -18,6 +18,9 @@ export const PLAYER = {
   healthMax: 100,
 };
 
+const UP = new THREE.Vector3(0, 1, 0);
+const FORWARD = new THREE.Vector3(0, 0, 1);
+
 /** First-person monkey thief: movement, look, stamina, flashlight battery, viewmodel. */
 export class Player {
   readonly position = new THREE.Vector3();
@@ -42,11 +45,12 @@ export class Player {
   private readonly lightDir = new THREE.Vector3(0, 0, -1);
   readonly viewmodel = new THREE.Group();
   private readonly lens: THREE.MeshStandardMaterial;
+  private readonly flameHalo: THREE.MeshStandardMaterial;
   private readonly handPivot = new THREE.Group();
   private flicker = 0;
 
   constructor(private readonly camera: THREE.PerspectiveCamera, scene: THREE.Scene) {
-    this.flashlight = new THREE.SpotLight('#fff1d6', 0, 34, 0.46, 0.55, 1.4);
+    this.flashlight = new THREE.SpotLight('#ffb07a', 0, 34, 0.5, 0.7, 1.4);
     this.flashlight.castShadow = !LOW_SPEC;
     this.flashlight.shadow.mapSize.set(512, 512);
     this.flashlight.shadow.camera.near = 0.3;
@@ -55,44 +59,92 @@ export class Player {
     this.flashlight.shadow.normalBias = 0.03;
     scene.add(this.flashlight, this.flashlight.target);
 
-    // Viewmodel: furry monkey hand gripping a brass-and-black flashlight.
+    // Viewmodel: monkey hand gripping the bail of an antique caged lantern.
     const fur = new THREE.MeshStandardMaterial({ color: '#5a3b26', roughness: 1 });
     const palm = new THREE.MeshStandardMaterial({ color: '#8a6a55', roughness: 0.8 });
-    const metal = new THREE.MeshStandardMaterial({ color: '#1b1c1e', roughness: 0.35, metalness: 0.8 });
-    const brass = new THREE.MeshStandardMaterial({ color: '#a8823c', roughness: 0.3, metalness: 0.9 });
-    this.lens = new THREE.MeshStandardMaterial({ color: '#fff7e0', emissive: '#fff1c8', emissiveIntensity: 3 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.24, 14), metal);
-    body.rotation.x = Math.PI / 2;
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.03, 0.07, 16), brass);
-    head.rotation.x = Math.PI / 2;
-    head.position.z = -0.15;
-    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.036, 16), this.lens);
-    lens.position.z = -0.186;
-    lens.rotation.y = Math.PI;
-    const grip = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 6, 14), brass);
-    grip.position.z = 0.05;
-    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.36, 10), fur);
-    forearm.rotation.x = Math.PI / 2 - 0.25;
-    forearm.position.set(0.02, -0.05, 0.22);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), palm);
-    hand.scale.set(1, 0.8, 1.3);
-    hand.position.set(0.01, -0.02, 0.02);
-    this.handPivot.add(body, head, lens, grip, forearm, hand);
-    for (let i = 0; i < 4; i++) {
-      const finger = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.04, 3, 6), palm);
-      finger.rotation.z = Math.PI / 2;
-      finger.position.set(-0.025, 0.0, -0.035 + i * 0.024);
-      this.handPivot.add(finger);
+    const wrap = new THREE.MeshStandardMaterial({ color: '#2a1a14', roughness: 0.95 });
+    const bronze = new THREE.MeshStandardMaterial({ color: '#8a6a35', roughness: 0.5, metalness: 0.85 });
+    const iron = new THREE.MeshStandardMaterial({ color: '#1c1a18', roughness: 0.55, metalness: 0.8 });
+    this.lens = new THREE.MeshStandardMaterial({ color: '#ff5a2a', emissive: '#ff5a2a', emissiveIntensity: 3 });
+    this.flameHalo = new THREE.MeshStandardMaterial({
+      color: '#c9a227',
+      emissive: '#c9a227',
+      emissiveIntensity: 1.6,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    });
+    const add = (mesh: THREE.Mesh, x = 0, y = 0, z = 0): THREE.Mesh => {
+      mesh.position.set(x, y, z);
+      this.handPivot.add(mesh);
+      return mesh;
+    };
+    /** Capsule (finger segment) spanning two points in handPivot space. */
+    const limb = (a: THREE.Vector3, b: THREE.Vector3, r: number): void => {
+      const d = b.clone().sub(a);
+      const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, d.length(), 3, 6), palm);
+      m.quaternion.setFromUnitVectors(UP, d.normalize());
+      add(m).position.copy(a).lerp(b, 0.5);
+    };
+
+    // Lantern, centred on the pivot: hollow spherical cage with a flame inside.
+    const R = 0.058;
+    const meridian = new THREE.TorusGeometry(R, 0.0028, 5, 24);
+    for (let i = 0; i < 3; i++) add(new THREE.Mesh(meridian, bronze)).rotation.y = (i * Math.PI) / 3;
+    for (const lat of [-0.6, 0, 0.6]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R * Math.cos(lat), 0.0028, 5, 24), iron);
+      ring.rotation.x = Math.PI / 2;
+      add(ring, 0, R * Math.sin(lat), 0);
     }
-    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.035, 3, 6), palm);
-    thumb.position.set(0.02, 0.03, -0.02);
-    thumb.rotation.x = 0.8;
-    this.handPivot.add(thumb);
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), this.lens));
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 10), this.flameHalo));
+    // Pointed lid and foot.
+    add(new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.05, 12), iron), 0, 0.075, 0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.034, 0.016, 12), iron), 0, -0.06, 0);
+    const footRing = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.004, 5, 18), bronze);
+    footRing.rotation.x = Math.PI / 2;
+    add(footRing, 0, -0.068, 0);
+    // Short stem, crossbar and arched bail; the fist closes around the arch top.
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.024, 6), bronze), 0, 0.11, 0);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.064, 6), bronze);
+    bar.rotation.z = Math.PI / 2;
+    add(bar, 0, 0.12, 0);
+    add(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.0035, 5, 16, Math.PI), bronze), 0, 0.12, 0);
+
+    // Forearm rises from the lower right into the fist, wrapped in dark cloth.
+    const wrist = new THREE.Vector3(0.012, 0.165, 0.055);
+    const elbow = new THREE.Vector3(0.13, -0.06, 0.4);
+    const armAxis = wrist.clone().sub(elbow);
+    const armLength = armAxis.length();
+    armAxis.normalize();
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.066, armLength, 10), fur);
+    forearm.quaternion.setFromUnitVectors(UP, armAxis);
+    add(forearm).position.copy(elbow).lerp(wrist, 0.5);
+    const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.35);
+    for (const t of [0.42, 0.62, 0.82]) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry((0.066 - 0.018 * t) * 1.04, 0.007, 5, 18), wrap);
+      band.scale.z = 2.6;
+      band.quaternion.setFromUnitVectors(FORWARD, armAxis).multiply(tilt);
+      add(band).position.copy(elbow).lerp(wrist, t);
+    }
+
+    // Palm behind the bail; four fingers over it, thumb closing from below.
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), palm);
+    hand.scale.set(0.95, 0.75, 0.8);
+    add(hand, 0.005, 0.165, 0.032);
+    for (let i = 0; i < 4; i++) {
+      const x = -0.036 + i * 0.024;
+      const knuckle = new THREE.Vector3(x, 0.18, 0.012);
+      const joint = new THREE.Vector3(x, 0.176, -0.02);
+      limb(knuckle, joint, 0.011);
+      limb(joint, new THREE.Vector3(x, 0.142, -0.024), 0.01);
+    }
+    limb(new THREE.Vector3(0.04, 0.14, 0.03), new THREE.Vector3(0.012, 0.136, -0.012), 0.012);
     this.handPivot.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = false;
     });
     this.viewmodel.add(this.handPivot);
-    this.viewmodel.position.set(0.24, -0.22, -0.38);
+    this.viewmodel.position.set(0.24, -0.17, -0.42);
     camera.add(this.viewmodel);
   }
 
@@ -197,12 +249,14 @@ export class Player {
     this.flashlight.intensity += (targetI - this.flashlight.intensity) * Math.min(1, dt * 30);
     this.flashlight.position.copy(this.eye).addScaledVector(this.rightVec(), 0.18).y -= 0.18;
     this.flashlight.target.position.copy(this.flashlight.position).addScaledVector(this.lightDir, 10);
-    this.lens.emissiveIntensity = this.lightOn ? 3 * this.flicker : 0.0;
-    this.lens.color.set(this.lightOn ? '#fff7e0' : '#3a3a36');
+    this.lens.emissiveIntensity = this.lightOn ? 3 * this.flicker : 0.12;
+    this.lens.color.set(this.lightOn ? '#ff5a2a' : '#3a1a12');
+    this.flameHalo.emissiveIntensity = this.lightOn ? 1.6 * this.flicker : 0;
+    this.flameHalo.opacity = this.lightOn ? 0.45 : 0;
 
     // viewmodel sway
     const bob = Math.sin(this.bobPhase * 2) * 0.012 * Math.min(1, horizSpeed / 3);
-    this.viewmodel.position.set(0.24 + Math.cos(this.bobPhase) * 0.01, -0.22 + bob - (this.rooted ? 0.05 : 0), -0.38 + (this.rooted ? 0.06 : 0));
+    this.viewmodel.position.set(0.24 + Math.cos(this.bobPhase) * 0.01, -0.17 + bob - (this.rooted ? 0.05 : 0), -0.42 + (this.rooted ? 0.06 : 0));
     this.handPivot.rotation.set(this.rooted ? -0.35 : 0, this.rooted ? 0.25 : 0, 0);
     return toggled;
   }

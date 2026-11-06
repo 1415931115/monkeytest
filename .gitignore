@@ -2,3 +2,6 @@ node_modules/
 test-results/
 *.log
 .DS_Store
+dist/
+playwright-report/
+.claude-run/
