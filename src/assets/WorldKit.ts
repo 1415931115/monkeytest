@@ -60,15 +60,40 @@ export function lumpyBlob(
   return g;
 }
 
-const LEAF_DARK = new THREE.Color('#16301a');
-const LEAF_MID = new THREE.Color('#2a4d24');
-const LEAF_LIGHT = new THREE.Color('#47693a');
-const BLOSSOM = new THREE.Color('#d9839f');
-const BLOSSOM_PALE = new THREE.Color('#f0b8c8');
+// Ink-night orchard palette: pine-smoke teal leaves (#2d4a3e family) + peach blossom.
+const LEAF_DARK = new THREE.Color('#1f3a32');
+const LEAF_MID = new THREE.Color('#2d5a46');
+const LEAF_LIGHT = new THREE.Color('#5a8a5c');
+const BLOSSOM = new THREE.Color('#c87a98');
+const BLOSSOM_PALE = new THREE.Color('#e8b0c4');
+const MOON_TINT = new THREE.Color('#b9c8ff');
+const UNDER_TINT = new THREE.Color('#2a1838');
+
+/** Bake a moonlit-top / ink-purple-underside gradient into canopy vertex colours so
+ *  silhouettes read as layered shapes instead of a black mass. */
+function shadeCanopy(g: THREE.BufferGeometry): void {
+  g.computeVertexNormals();
+  const col = g.getAttribute('color') as THREE.BufferAttribute | undefined;
+  const nrm = g.getAttribute('normal') as THREE.BufferAttribute;
+  if (!col) return;
+  const c = new THREE.Color();
+  for (let i = 0; i < col.count; i++) {
+    const ny = nrm.getY(i);
+    const nx = nrm.getX(i);
+    c.setRGB(col.getX(i), col.getY(i), col.getZ(i));
+    const top = THREE.MathUtils.smoothstep(ny, 0.15, 0.95);
+    const rim = THREE.MathUtils.smoothstep(-nx * 0.6 + ny * 0.4, 0.3, 0.9);
+    c.lerp(MOON_TINT, top * 0.16 + rim * 0.06);
+    const under = THREE.MathUtils.smoothstep(-ny, 0.1, 0.9);
+    c.lerp(UNDER_TINT, under * 0.55);
+    col.setXYZ(i, c.r, c.g, c.b);
+  }
+  col.needsUpdate = true;
+}
 
 function leafColor(rng: () => number): THREE.Color {
   const r = rng();
-  if (r < 0.14) return BLOSSOM.clone().lerp(BLOSSOM_PALE, rng());
+  if (r < 0.1) return BLOSSOM.clone().lerp(BLOSSOM_PALE, rng());
   if (r < 0.5) return LEAF_DARK.clone().lerp(LEAF_MID, rng());
   return LEAF_MID.clone().lerp(LEAF_LIGHT, rng() * 0.8);
 }
@@ -165,6 +190,7 @@ export function buildTreeTemplate(seed: number): TreeTemplate {
   addCylindricalUv(trunk);
   for (const b of blobs) b.deleteAttribute('uv');
   const canopy = mergeGeometries(blobs);
+  shadeCanopy(canopy);
   trunk.computeBoundingSphere();
   canopy.computeBoundingSphere();
   return { trunk, canopy, anchors, trunkRadius: trunkR };
@@ -260,8 +286,8 @@ export function buildPeachLeafGeometry(): THREE.BufferGeometry {
 export function buildGrassClump(rng: () => number): THREE.BufferGeometry {
   const positions: number[] = [];
   const colors: number[] = [];
-  const base = new THREE.Color('#14240f');
-  const tip = new THREE.Color('#4d6b31');
+  const base = new THREE.Color('#1c3026');
+  const tip = new THREE.Color('#7aa070');
   const blades = 6;
   for (let i = 0; i < blades; i++) {
     const a = rng() * Math.PI * 2;

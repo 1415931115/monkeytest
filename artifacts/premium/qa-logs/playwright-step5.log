@@ -1,0 +1,187 @@
+
+Running 32 tests using 1 worker
+
+[1A[2K(node:291498) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:291498) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/32] [desktop-chrome] › tests/extract-sanctuary.spec.ts:49:3 › extract sanctuary v1 › shrine kinds: 2 real, 2 bait (different zones preferred), 2 dormant; compass shows only real
+[1A[2K[2/32] [desktop-chrome] › tests/extract-sanctuary.spec.ts:61:3 › extract sanctuary v1 › real shrine during a hunt: sanctuary holds, charge → extracted, haul banked
+[1A[2K[desktop-chrome] › tests/extract-sanctuary.spec.ts:61:3 › extract sanctuary v1 › real shrine during a hunt: sanctuary holds, charge → extracted, haul banked
+[sanctuary] nearest 紫陌 during charge: 4.80 m
+
+[1A[2K[3/32] [desktop-chrome] › tests/extract-sanctuary.spec.ts:98:3 › extract sanctuary v1 › bait shrine: charges, fires 金阙戏弄, no extract, haul not banked, 8 s lockout
+[1A[2K[4/32] [desktop-chrome] › tests/qa-bugs.spec.ts:14:1 › B1 coarse or touch devices show controls before any stick press
+[1A[2K[5/32] [desktop-chrome] › tests/qa-bugs.spec.ts:37:1 › B1 hasTouch landscape viewport is playable without a prior hidden-control press
+[1A[2K[6/32] [desktop-chrome] › tests/qa-bugs.spec.ts:67:1 › B1 desktop mouse path does not force touch controls
+[1A[2K[7/32] [desktop-chrome] › tests/qa-bugs.spec.ts:82:1 › C1 every spawned peach is harvestable with a level gaze
+[1A[2K[8/32] [desktop-chrome] › tests/qa-bugs.spec.ts:125:1 › M3 Qingluan cannot kill before the call warning
+[1A[2K[9/32] [desktop-chrome] › tests/qa-bugs.spec.ts:185:1 › M1 Escape and P both toggle pause
+[1A[2K[10/32] [desktop-chrome] › tests/qa-bugs.spec.ts:222:1 › M2 failed pointer lock shows a click-to-capture hint
+[1A[2K  1) [desktop-chrome] › tests/qa-bugs.spec.ts:222:1 › M2 failed pointer lock shows a click-to-capture hint 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('#lock-hint')
+    Expected pattern: [32m/click to capture the mouse/i[39m
+    Received string:  [31m"点击画面以锁定视角"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('#lock-hint')[22m
+    [2m    14 × locator resolved to <div class="" role="status" id="lock-hint">点击画面以锁定视角</div>[22m
+    [2m       - unexpected value "点击画面以锁定视角"[22m
+
+
+      229 |   await page.click('#start-button');
+      230 |   await expect(page.locator('#lock-hint')).toBeVisible();
+    > 231 |   await expect(page.locator('#lock-hint')).toContainText(/click to capture the mouse/i);
+          |                                            ^
+      232 |
+      233 |   const hiddenAfterLock = await page.evaluate(() => {
+      234 |     const canvas = document.querySelector('#game-canvas');
+        at /workspace/monkeytest/tests/qa-bugs.spec.ts:231:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-M2-failed-pointer-lock-shows-a-click-to-capture-hint-desktop-chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../tmp/monkeybro-pw-results/qa-bugs-M2-failed-pointer-lock-shows-a-click-to-capture-hint-desktop-chrome/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-M2-failed-pointer-lock-shows-a-click-to-capture-hint-desktop-chrome/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/monkeybro-pw-results/qa-bugs-M2-failed-pointer-lock-shows-a-click-to-capture-hint-desktop-chrome/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:292499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:292499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[11/32] [desktop-chrome] › tests/qa-bugs.spec.ts:242:1 › M4 grabbers separate and cannot double-hit in one frame
+[1A[2K[12/32] [desktop-chrome] › tests/qa-bugs.spec.ts:319:1 › stray touch on a fine pointer yields to the mouse
+[1A[2K  2) [desktop-chrome] › tests/qa-bugs.spec.ts:319:1 › stray touch on a fine pointer yields to the mouse 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected substring: [32m"Hold E / click"[39m
+    Received string:    [31m"灯已点亮 · 对准发光的桃子长按 E / 鼠标 · 摘桃时若有人唤「猴哥——」，千万别回头。"[39m
+
+      349 |   expect(playing.touchMode).toBe(false);
+      350 |   expect(playing.display).toBe('none');
+    > 351 |   expect(playing.hint).toContain('Hold E / click');
+          |                        ^
+      352 | });
+      353 |
+      354 | test('coarse pointer keeps touch controls when a mouse event arrives', async ({ page }, testInfo) => {
+        at /workspace/monkeytest/tests/qa-bugs.spec.ts:351:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-stray-touch-on-a-fine-pointer-yields-to-the-mouse-desktop-chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../tmp/monkeybro-pw-results/qa-bugs-stray-touch-on-a-fine-pointer-yields-to-the-mouse-desktop-chrome/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-stray-touch-on-a-fine-pointer-yields-to-the-mouse-desktop-chrome/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/monkeybro-pw-results/qa-bugs-stray-touch-on-a-fine-pointer-yields-to-the-mouse-desktop-chrome/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:292723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:292723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[13/32] [desktop-chrome] › tests/qa-bugs.spec.ts:354:1 › coarse pointer keeps touch controls when a mouse event arrives
+[1A[2K[14/32] [desktop-chrome] › tests/qa-bugs.spec.ts:375:1 › Esc toggles again after P resumes a lock-loss pause
+[1A[2K[15/32] [desktop-chrome] › tests/qa-bugs.spec.ts:403:1 › trunk occlusion still leaves every peach reachable from some side
+[1A[2K[16/32] [desktop-chrome] › tests/visual.spec.ts:47:1 › renders a nonblank interactive game canvas
+[1A[2K(node:293428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:293428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[17/32] [mobile-chrome] › tests/extract-sanctuary.spec.ts:49:3 › extract sanctuary v1 › shrine kinds: 2 real, 2 bait (different zones preferred), 2 dormant; compass shows only real
+[1A[2K[18/32] [mobile-chrome] › tests/extract-sanctuary.spec.ts:61:3 › extract sanctuary v1 › real shrine during a hunt: sanctuary holds, charge → extracted, haul banked
+[1A[2K[19/32] [mobile-chrome] › tests/extract-sanctuary.spec.ts:98:3 › extract sanctuary v1 › bait shrine: charges, fires 金阙戏弄, no extract, haul not banked, 8 s lockout
+[1A[2K[20/32] [mobile-chrome] › tests/qa-bugs.spec.ts:14:1 › B1 coarse or touch devices show controls before any stick press
+[1A[2K[21/32] [mobile-chrome] › tests/qa-bugs.spec.ts:37:1 › B1 hasTouch landscape viewport is playable without a prior hidden-control press
+[1A[2K[22/32] [mobile-chrome] › tests/qa-bugs.spec.ts:67:1 › B1 desktop mouse path does not force touch controls
+[1A[2K[23/32] [mobile-chrome] › tests/qa-bugs.spec.ts:82:1 › C1 every spawned peach is harvestable with a level gaze
+[1A[2K[24/32] [mobile-chrome] › tests/qa-bugs.spec.ts:125:1 › M3 Qingluan cannot kill before the call warning
+[1A[2K[25/32] [mobile-chrome] › tests/qa-bugs.spec.ts:185:1 › M1 Escape and P both toggle pause
+[1A[2K[26/32] [mobile-chrome] › tests/qa-bugs.spec.ts:222:1 › M2 failed pointer lock shows a click-to-capture hint
+[1A[2K[27/32] [mobile-chrome] › tests/qa-bugs.spec.ts:242:1 › M4 grabbers separate and cannot double-hit in one frame
+[1A[2K[28/32] [mobile-chrome] › tests/qa-bugs.spec.ts:319:1 › stray touch on a fine pointer yields to the mouse
+[1A[2K[29/32] [mobile-chrome] › tests/qa-bugs.spec.ts:354:1 › coarse pointer keeps touch controls when a mouse event arrives
+[1A[2K  3) [mobile-chrome] › tests/qa-bugs.spec.ts:354:1 › coarse pointer keeps touch controls when a mouse event arrives 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected substring: [32m"Hold the pick control"[39m
+    Received string:    [31m"灯已点亮 · 对准发光的桃子长按「摘」 · 摘桃时若有人唤「猴哥——」，千万别回头。"[39m
+
+      369 |   expect(playing.touchMode).toBe(true);
+      370 |   expect(playing.display).toBe('block');
+    > 371 |   expect(playing.hint).toContain('Hold the pick control');
+          |                        ^
+      372 |   expect(playing.hint.includes('Hold E')).toBe(false);
+      373 | });
+      374 |
+        at /workspace/monkeytest/tests/qa-bugs.spec.ts:371:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-coarse-pointer-kee-4e658--when-a-mouse-event-arrives-mobile-chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../tmp/monkeybro-pw-results/qa-bugs-coarse-pointer-kee-4e658--when-a-mouse-event-arrives-mobile-chrome/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../tmp/monkeybro-pw-results/qa-bugs-coarse-pointer-kee-4e658--when-a-mouse-event-arrives-mobile-chrome/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../tmp/monkeybro-pw-results/qa-bugs-coarse-pointer-kee-4e658--when-a-mouse-event-arrives-mobile-chrome/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K(node:294102) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:294102) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[30/32] [mobile-chrome] › tests/qa-bugs.spec.ts:375:1 › Esc toggles again after P resumes a lock-loss pause
+[1A[2K[31/32] [mobile-chrome] › tests/qa-bugs.spec.ts:403:1 › trunk occlusion still leaves every peach reachable from some side
+[1A[2K[32/32] [mobile-chrome] › tests/visual.spec.ts:47:1 › renders a nonblank interactive game canvas
+[1A[2K  3 failed
+    [desktop-chrome] › tests/qa-bugs.spec.ts:222:1 › M2 failed pointer lock shows a click-to-capture hint 
+    [desktop-chrome] › tests/qa-bugs.spec.ts:319:1 › stray touch on a fine pointer yields to the mouse 
+    [mobile-chrome] › tests/qa-bugs.spec.ts:354:1 › coarse pointer keeps touch controls when a mouse event arrives 
+  8 skipped
+  21 passed (2.6m)
+exit=1

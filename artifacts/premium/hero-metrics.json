@@ -1,0 +1,1160 @@
+{
+  "url": "http://127.0.0.1:5188/monkeytest/",
+  "threshold": 16,
+  "measuredAt": "2026-11-07T02:51:47.608Z",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "profiles": {
+    "desktop": {
+      "viewmodel": {
+        "lanternCentreNdc": [
+          0.461,
+          -0.655
+        ],
+        "guardArmNdc": [
+          -0.387,
+          -0.791
+        ],
+        "aspect": 1.778,
+        "fov": 72,
+        "noiseFloorCoverage": 0,
+        "whole": {
+          "coverage": 0.0912,
+          "pixels": 84071,
+          "bboxNorm": [
+            0.248,
+            0.428,
+            0.954,
+            1
+          ],
+          "centroidNorm": [
+            0.649,
+            0.754
+          ],
+          "meanRgb": [
+            26,
+            13,
+            12
+          ],
+          "palette": {
+            "lilac": 0.024,
+            "goldRedGlow": 0.002,
+            "gold": 0.02,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.056,
+            "furBrown": 0.018
+          }
+        },
+        "lanternAndRightArm": {
+          "coverage": 0.0638,
+          "pixels": 58795,
+          "bboxNorm": [
+            0.663,
+            0.428,
+            0.954,
+            1
+          ],
+          "centroidNorm": [
+            0.791,
+            0.707
+          ],
+          "meanRgb": [
+            21,
+            12,
+            9
+          ],
+          "palette": {
+            "lilac": 0.004,
+            "goldRedGlow": 0.003,
+            "gold": 0.028,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.071,
+            "furBrown": 0.026
+          }
+        },
+        "guardArm": {
+          "coverage": 0.0274,
+          "pixels": 25276,
+          "bboxNorm": [
+            0.248,
+            0.697,
+            0.387,
+            1
+          ],
+          "centroidNorm": [
+            0.318,
+            0.865
+          ],
+          "meanRgb": [
+            37,
+            15,
+            18
+          ],
+          "palette": {
+            "lilac": 0.069,
+            "goldRedGlow": 0,
+            "gold": 0,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.022,
+            "furBrown": 0
+          }
+        }
+      },
+      "heroes": {
+        "grabber": {
+          "distanceM": 3.2,
+          "gameState": "playing",
+          "monsterState": "chase",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.0581,
+          "pixels": 53499,
+          "bboxNorm": [
+            0.334,
+            0.29,
+            0.725,
+            0.894
+          ],
+          "centroidNorm": [
+            0.491,
+            0.589
+          ],
+          "meanRgb": [
+            133,
+            89,
+            83
+          ],
+          "palette": {
+            "lilac": 0.234,
+            "goldRedGlow": 0.157,
+            "gold": 0.01,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.271,
+            "furBrown": 0.129
+          }
+        },
+        "caller": {
+          "distanceM": 5.5,
+          "gameState": "playing",
+          "monsterState": "calling",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.0257,
+          "pixels": 23694,
+          "bboxNorm": [
+            0.447,
+            0.237,
+            0.555,
+            0.736
+          ],
+          "centroidNorm": [
+            0.498,
+            0.535
+          ],
+          "meanRgb": [
+            57,
+            39,
+            23
+          ],
+          "palette": {
+            "lilac": 0.004,
+            "goldRedGlow": 0.054,
+            "gold": 0.015,
+            "teal": 0.001,
+            "ice": 0,
+            "inkPurple": 0.029,
+            "furBrown": 0.177
+          }
+        },
+        "howler": {
+          "distanceM": 22,
+          "gameState": "playing",
+          "monsterState": "watching",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.0109,
+          "pixels": 10022,
+          "bboxNorm": [
+            0.452,
+            0.258,
+            0.552,
+            0.549
+          ],
+          "centroidNorm": [
+            0.501,
+            0.399
+          ],
+          "meanRgb": [
+            47,
+            38,
+            43
+          ],
+          "palette": {
+            "lilac": 0.077,
+            "goldRedGlow": 0,
+            "gold": 0.016,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.634,
+            "furBrown": 0.04
+          }
+        }
+      },
+      "lanternToggle": {
+        "meanLuminanceOn": 40.6,
+        "meanLuminanceOff": 39.4,
+        "changed": {
+          "coverage": 0.0373,
+          "pixels": 34392,
+          "bboxNorm": [
+            0.175,
+            0.382,
+            0.768,
+            0.958
+          ],
+          "centroidNorm": [
+            0.551,
+            0.663
+          ],
+          "meanRgb": [
+            58,
+            47,
+            42
+          ],
+          "palette": {
+            "lilac": 0.019,
+            "goldRedGlow": 0.011,
+            "gold": 0.048,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.055,
+            "furBrown": 0.114
+          }
+        }
+      },
+      "ui": {
+        "title": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "panel": {
+            "id": "screen-title",
+            "rect": {
+              "l": 320,
+              "t": 77,
+              "r": 960,
+              "b": 643
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "paused": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "panel": {
+            "id": "screen-pause",
+            "rect": {
+              "l": 410,
+              "t": 227,
+              "r": 870,
+              "b": 493
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "dead": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "panel": {
+            "id": "screen-dead",
+            "rect": {
+              "l": 410,
+              "t": 207,
+              "r": 870,
+              "b": 513
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "extracted": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "panel": {
+            "id": "screen-extracted",
+            "rect": {
+              "l": 410,
+              "t": 174,
+              "r": 870,
+              "b": 546
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "hud-worst-case": {
+          "viewport": [
+            1280,
+            720
+          ],
+          "panel": null,
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": [],
+          "hudRects": [
+            {
+              "id": "compass",
+              "l": 380,
+              "t": 14,
+              "r": 900,
+              "b": 48
+            },
+            {
+              "id": "zone-panel",
+              "l": 16,
+              "t": 14,
+              "r": 218,
+              "b": 62
+            },
+            {
+              "id": "vitals",
+              "l": 16,
+              "t": 611,
+              "r": 280,
+              "b": 704
+            },
+            {
+              "id": "satchel",
+              "l": 912,
+              "t": 617,
+              "r": 1264,
+              "b": 704
+            },
+            {
+              "id": "reticle",
+              "l": 617,
+              "t": 337,
+              "r": 663,
+              "b": 383
+            },
+            {
+              "id": "prompt",
+              "l": 516,
+              "t": 400,
+              "r": 764,
+              "b": 433
+            },
+            {
+              "id": "banner",
+              "l": 260,
+              "t": 133,
+              "r": 1020,
+              "b": 219
+            },
+            {
+              "id": "subtitle",
+              "l": 512,
+              "t": 476,
+              "r": 766,
+              "b": 548
+            },
+            {
+              "id": "hunt-meter",
+              "l": 530,
+              "t": 56,
+              "r": 750,
+              "b": 79
+            },
+            {
+              "id": "hint",
+              "l": 366,
+              "t": 576,
+              "r": 914,
+              "b": 610
+            },
+            {
+              "id": "extract",
+              "l": 540,
+              "t": 440,
+              "r": 740,
+              "b": 469
+            }
+          ]
+        }
+      },
+      "pageErrors": []
+    },
+    "mobile-portrait": {
+      "viewmodel": {
+        "lanternCentreNdc": [
+          1.395,
+          -0.655
+        ],
+        "guardArmNdc": [
+          -1.172,
+          -0.791
+        ],
+        "aspect": 0.587,
+        "fov": 72,
+        "noiseFloorCoverage": 0,
+        "whole": {
+          "coverage": 0.0289,
+          "pixels": 7475,
+          "bboxNorm": [
+            0,
+            0.697,
+            1,
+            1
+          ],
+          "centroidNorm": [
+            0.054,
+            0.845
+          ],
+          "meanRgb": [
+            45,
+            20,
+            22
+          ],
+          "palette": {
+            "lilac": 0.061,
+            "goldRedGlow": 0,
+            "gold": 0.005,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.008,
+            "furBrown": 0.012
+          }
+        },
+        "lanternAndRightArm": {
+          "coverage": 0.0001,
+          "pixels": 16,
+          "bboxNorm": [
+            0.992,
+            0.794,
+            1,
+            0.812
+          ],
+          "centroidNorm": [
+            0.996,
+            0.803
+          ],
+          "meanRgb": [
+            16,
+            7,
+            3
+          ],
+          "palette": {
+            "lilac": 0,
+            "goldRedGlow": 0,
+            "gold": 0,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0,
+            "furBrown": 0
+          }
+        },
+        "guardArm": {
+          "coverage": 0.0288,
+          "pixels": 7459,
+          "bboxNorm": [
+            0,
+            0.697,
+            0.159,
+            1
+          ],
+          "centroidNorm": [
+            0.052,
+            0.845
+          ],
+          "meanRgb": [
+            45,
+            20,
+            22
+          ],
+          "palette": {
+            "lilac": 0.061,
+            "goldRedGlow": 0,
+            "gold": 0.005,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.008,
+            "furBrown": 0.012
+          }
+        }
+      },
+      "heroes": {
+        "grabber": {
+          "distanceM": 3.2,
+          "gameState": "playing",
+          "monsterState": "chase",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.1257,
+          "pixels": 32559,
+          "bboxNorm": [
+            0,
+            0.465,
+            1,
+            0.858
+          ],
+          "centroidNorm": [
+            0.496,
+            0.621
+          ],
+          "meanRgb": [
+            155,
+            105,
+            86
+          ],
+          "palette": {
+            "lilac": 0.088,
+            "goldRedGlow": 0.186,
+            "gold": 0.019,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.126,
+            "furBrown": 0.197
+          }
+        },
+        "caller": {
+          "distanceM": 5.5,
+          "gameState": "playing",
+          "monsterState": "calling",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.0737,
+          "pixels": 19089,
+          "bboxNorm": [
+            0.333,
+            0.28,
+            0.667,
+            0.735
+          ],
+          "centroidNorm": [
+            0.496,
+            0.551
+          ],
+          "meanRgb": [
+            58,
+            40,
+            22
+          ],
+          "palette": {
+            "lilac": 0.005,
+            "goldRedGlow": 0.056,
+            "gold": 0.017,
+            "teal": 0.001,
+            "ice": 0,
+            "inkPurple": 0.022,
+            "furBrown": 0.188
+          }
+        },
+        "howler": {
+          "distanceM": 22,
+          "gameState": "playing",
+          "monsterState": "watching",
+          "health": 100,
+          "noiseFloorCoverage": 0,
+          "coverage": 0.0326,
+          "pixels": 8439,
+          "bboxNorm": [
+            0.351,
+            0.25,
+            0.656,
+            0.55
+          ],
+          "centroidNorm": [
+            0.504,
+            0.4
+          ],
+          "meanRgb": [
+            47,
+            37,
+            42
+          ],
+          "palette": {
+            "lilac": 0.078,
+            "goldRedGlow": 0,
+            "gold": 0.016,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.628,
+            "furBrown": 0.039
+          }
+        }
+      },
+      "ui": {
+        "title": {
+          "viewport": [
+            390,
+            664
+          ],
+          "panel": {
+            "id": "screen-title",
+            "rect": {
+              "l": 16,
+              "t": 56,
+              "r": 374,
+              "b": 608
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "paused": {
+          "viewport": [
+            390,
+            664
+          ],
+          "panel": {
+            "id": "screen-pause",
+            "rect": {
+              "l": 16,
+              "t": 213,
+              "r": 374,
+              "b": 451
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "dead": {
+          "viewport": [
+            390,
+            664
+          ],
+          "panel": {
+            "id": "screen-dead",
+            "rect": {
+              "l": 16,
+              "t": 194,
+              "r": 374,
+              "b": 470
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "extracted": {
+          "viewport": [
+            390,
+            664
+          ],
+          "panel": {
+            "id": "screen-extracted",
+            "rect": {
+              "l": 16,
+              "t": 161,
+              "r": 374,
+              "b": 503
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "hud-worst-case": {
+          "viewport": [
+            390,
+            664
+          ],
+          "panel": null,
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": [
+            "vitals x banner (188x54px)",
+            "vitals x hunt-meter (119x19px)",
+            "banner x hunt-meter (220x3px)",
+            "subtitle x hint (164x44px)",
+            "subtitle x touch-stick (28x45px)",
+            "subtitle x touch-buttons (30x45px)",
+            "hint x touch-stick (44x86px)",
+            "hint x touch-buttons (45x86px)",
+            "extract x touch-stick (47x15px)",
+            "extract x touch-buttons (47x29px)"
+          ],
+          "hudRects": [
+            {
+              "id": "compass",
+              "l": 47,
+              "t": 64,
+              "r": 343,
+              "b": 98
+            },
+            {
+              "id": "zone-panel",
+              "l": 16,
+              "t": 14,
+              "r": 218,
+              "b": 62
+            },
+            {
+              "id": "vitals",
+              "l": 16,
+              "t": 108,
+              "r": 204,
+              "b": 189
+            },
+            {
+              "id": "satchel",
+              "l": 114,
+              "t": 572,
+              "r": 374,
+              "b": 648
+            },
+            {
+              "id": "reticle",
+              "l": 172,
+              "t": 309,
+              "r": 218,
+              "b": 355
+            },
+            {
+              "id": "prompt",
+              "l": 71,
+              "t": 372,
+              "r": 319,
+              "b": 405
+            },
+            {
+              "id": "banner",
+              "l": 16,
+              "t": 124,
+              "r": 374,
+              "b": 178
+            },
+            {
+              "id": "subtitle",
+              "l": 114,
+              "t": 459,
+              "r": 278,
+              "b": 504
+            },
+            {
+              "id": "hunt-meter",
+              "l": 85,
+              "t": 104,
+              "r": 305,
+              "b": 127
+            },
+            {
+              "id": "hint",
+              "l": 98,
+              "t": 460,
+              "r": 293,
+              "b": 554
+            },
+            {
+              "id": "extract",
+              "l": 95,
+              "t": 412,
+              "r": 295,
+              "b": 441
+            },
+            {
+              "id": "touch-stick",
+              "l": 22,
+              "t": 426,
+              "r": 142,
+              "b": 546
+            },
+            {
+              "id": "touch-buttons",
+              "l": 248,
+              "t": 406,
+              "r": 372,
+              "b": 546
+            },
+            {
+              "id": "touch-pause",
+              "l": 334,
+              "t": 12,
+              "r": 378,
+              "b": 56
+            }
+          ]
+        }
+      },
+      "pageErrors": []
+    },
+    "mobile-landscape": {
+      "viewmodel": {
+        "lanternCentreNdc": [
+          0.374,
+          -0.655
+        ],
+        "guardArmNdc": [
+          -0.314,
+          -0.791
+        ],
+        "aspect": 2.193,
+        "fov": 72,
+        "noiseFloorCoverage": 0,
+        "whole": {
+          "coverage": 0.036,
+          "pixels": 9224,
+          "bboxNorm": [
+            0.304,
+            0.427,
+            0.868,
+            1
+          ],
+          "centroidNorm": [
+            0.652,
+            0.713
+          ],
+          "meanRgb": [
+            22,
+            8,
+            10
+          ],
+          "palette": {
+            "lilac": 0.016,
+            "goldRedGlow": 0,
+            "gold": 0,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.037,
+            "furBrown": 0.002
+          }
+        },
+        "lanternAndRightArm": {
+          "coverage": 0.0273,
+          "pixels": 6997,
+          "bboxNorm": [
+            0.644,
+            0.427,
+            0.868,
+            1
+          ],
+          "centroidNorm": [
+            0.742,
+            0.658
+          ],
+          "meanRgb": [
+            17,
+            7,
+            7
+          ],
+          "palette": {
+            "lilac": 0.008,
+            "goldRedGlow": 0,
+            "gold": 0,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.038,
+            "furBrown": 0.001
+          }
+        },
+        "guardArm": {
+          "coverage": 0.0087,
+          "pixels": 2227,
+          "bboxNorm": [
+            0.304,
+            0.699,
+            0.408,
+            1
+          ],
+          "centroidNorm": [
+            0.37,
+            0.886
+          ],
+          "meanRgb": [
+            35,
+            14,
+            16
+          ],
+          "palette": {
+            "lilac": 0.04,
+            "goldRedGlow": 0,
+            "gold": 0,
+            "teal": 0,
+            "ice": 0,
+            "inkPurple": 0.037,
+            "furBrown": 0.004
+          }
+        }
+      },
+      "ui": {
+        "title": {
+          "viewport": [
+            750,
+            342
+          ],
+          "panel": {
+            "id": "screen-title",
+            "rect": {
+              "l": 55,
+              "t": 16,
+              "r": 695,
+              "b": 573
+            },
+            "fitsViewport": false,
+            "panelScrolls": false,
+            "screenScrolls": true,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": false
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "paused": {
+          "viewport": [
+            750,
+            342
+          ],
+          "panel": {
+            "id": "screen-pause",
+            "rect": {
+              "l": 145,
+              "t": 38,
+              "r": 605,
+              "b": 304
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "dead": {
+          "viewport": [
+            750,
+            342
+          ],
+          "panel": {
+            "id": "screen-dead",
+            "rect": {
+              "l": 145,
+              "t": 18,
+              "r": 605,
+              "b": 324
+            },
+            "fitsViewport": true,
+            "panelScrolls": false,
+            "screenScrolls": false,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": true
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "extracted": {
+          "viewport": [
+            750,
+            342
+          ],
+          "panel": {
+            "id": "screen-extracted",
+            "rect": {
+              "l": 145,
+              "t": 16,
+              "r": 605,
+              "b": 388
+            },
+            "fitsViewport": false,
+            "panelScrolls": false,
+            "screenScrolls": true,
+            "screenOverflowY": "auto",
+            "primaryButtonInViewport": false
+          },
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": []
+        },
+        "hud-worst-case": {
+          "viewport": [
+            750,
+            342
+          ],
+          "panel": null,
+          "clippedText": [],
+          "offscreen": [],
+          "overlaps": [
+            "compass x zone-panel (75x34px)",
+            "vitals x prompt (29x11px)",
+            "vitals x subtitle (17x28px)",
+            "vitals x extract (5x29px)",
+            "satchel x prompt (117x5px)",
+            "satchel x subtitle (103x22px)",
+            "satchel x extract (93x29px)",
+            "reticle x hint (46x16px)",
+            "prompt x subtitle (222x33px)",
+            "prompt x hint (248x21px)",
+            "banner x hunt-meter (220x18px)",
+            "banner x touch-stick (112x26px)",
+            "banner x touch-buttons (112x46px)",
+            "subtitle x hint (222x33px)",
+            "subtitle x extract (200x10px)"
+          ],
+          "hudRects": [
+            {
+              "id": "compass",
+              "l": 143,
+              "t": 14,
+              "r": 608,
+              "b": 48
+            },
+            {
+              "id": "zone-panel",
+              "l": 16,
+              "t": 14,
+              "r": 218,
+              "b": 62
+            },
+            {
+              "id": "vitals",
+              "l": 16,
+              "t": 233,
+              "r": 280,
+              "b": 326
+            },
+            {
+              "id": "satchel",
+              "l": 382,
+              "t": 239,
+              "r": 734,
+              "b": 326
+            },
+            {
+              "id": "reticle",
+              "l": 352,
+              "t": 148,
+              "r": 398,
+              "b": 194
+            },
+            {
+              "id": "prompt",
+              "l": 251,
+              "t": 211,
+              "r": 499,
+              "b": 244
+            },
+            {
+              "id": "banner",
+              "l": 30,
+              "t": 61,
+              "r": 720,
+              "b": 130
+            },
+            {
+              "id": "subtitle",
+              "l": 263,
+              "t": 199,
+              "r": 485,
+              "b": 261
+            },
+            {
+              "id": "hunt-meter",
+              "l": 265,
+              "t": 56,
+              "r": 485,
+              "b": 79
+            },
+            {
+              "id": "hint",
+              "l": 188,
+              "t": 178,
+              "r": 563,
+              "b": 232
+            },
+            {
+              "id": "extract",
+              "l": 275,
+              "t": 251,
+              "r": 475,
+              "b": 280
+            },
+            {
+              "id": "touch-stick",
+              "l": 22,
+              "t": 104,
+              "r": 142,
+              "b": 224
+            },
+            {
+              "id": "touch-buttons",
+              "l": 608,
+              "t": 84,
+              "r": 732,
+              "b": 224
+            },
+            {
+              "id": "touch-pause",
+              "l": 694,
+              "t": 12,
+              "r": 738,
+              "b": 56
+            }
+          ]
+        }
+      },
+      "pageErrors": []
+    }
+  }
+}

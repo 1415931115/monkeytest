@@ -772,9 +772,13 @@ export class AudioSystem {
           this.nextCricket = now + rand(0.25, 1.4);
         }
         if (now >= this.nextEvent) {
-          if (Math.random() < 0.55) this.creak(now + 0.05, null, playing ? 1 : 0.6);
-          else this.owl(now + 0.05, playing ? 1 : 0.6);
-          this.nextEvent = now + rand(10, 28);
+          const r = Math.random();
+          const lvl = playing ? 1 : 0.6;
+          if (r < 0.35) this.creak(now + 0.05, null, lvl);
+          else if (r < 0.6) this.owl(now + 0.05, lvl);
+          else if (r < 0.85 || danger > 0.4) this.windChime(now + 0.05, lvl);
+          else this.qinPluck(now + 0.05, lvl);
+          this.nextEvent = now + rand(8, 22);
         }
       }
 
@@ -980,27 +984,61 @@ export class AudioSystem {
 
   // ------------------------------------------------------------- one-shots
 
+  /** Lantern toggle: brass chain jingle + flame catching (on) or a soft snuff (off). */
   flashlight(on: boolean): void {
     this.safe(undefined, () => {
       if (!this.ok() || !this.gate('flash', 0.05)) return;
       const t = this.ctx!.currentTime + 0.005;
       const shot = new Shot(this.transient);
-      const f = on ? 3300 : 2300;
-      const bp = this.filt(shot, 'bandpass', f, 3, this.sfx);
-      const hp = this.filt(shot, 'highpass', 2000, 0.7, bp);
-      const g1 = this.gain(shot, 0, hp);
-      this.noise(shot, t, this.env(g1.gain, t, 0.001, 0.9, 0.012), g1);
-      const pg = this.gain(shot, 0, bp);
-      this.osc(shot, 'square', f * 0.5, t, this.env(pg.gain, t, 0.001, 0.12, 0.025), pg);
-      // spring / latch return
-      const t2 = t + 0.03;
-      const bp2 = this.filt(shot, 'bandpass', f * 0.7, 4, this.sfx);
-      const g2 = this.gain(shot, 0, bp2);
-      this.noise(shot, t2, this.env(g2.gain, t2, 0.001, 0.4, 0.01), g2);
-      // plastic body thump
-      const bg = this.gain(shot, 0, this.sfx);
-      this.osc(shot, 'sine', on ? 190 : 140, t, this.env(bg.gain, t, 0.002, 0.12, 0.035), bg);
+      // chain links: 3 tiny inharmonic bell ticks
+      for (let i = 0; i < 3; i++) this.bell(shot, rand(2600, 3800), t + i * rand(0.018, 0.032), 0.09, 0.022, this.sfx);
+      // cage lid tap
+      const lid = this.filt(shot, 'bandpass', 1400, 6, this.sfx);
+      const lg = this.gain(shot, 0, lid);
+      this.noise(shot, t, this.env(lg.gain, t, 0.001, 0.35, 0.02), lg);
+      // flame: breathy whoosh swelling up (on) or a short falling puff (off)
+      const bp = this.filt(shot, 'bandpass', on ? 500 : 900, 0.8, this.sfx);
+      const fg = this.gain(shot, 0, bp);
+      const t2 = t + 0.04;
+      if (on) {
+        bp.frequency.setValueAtTime(380, t2);
+        bp.frequency.exponentialRampToValueAtTime(1300, t2 + 0.25);
+        this.noise(shot, t2, this.env(fg.gain, t2, 0.08, 0.22, 0.3), fg);
+        const wg = this.gain(shot, 0, this.sfx);
+        this.osc(shot, 'sine', 95, t2, this.env(wg.gain, t2, 0.05, 0.05, 0.3), wg);
+      } else {
+        bp.frequency.setValueAtTime(1100, t2);
+        bp.frequency.exponentialRampToValueAtTime(300, t2 + 0.18);
+        this.noise(shot, t2, this.env(fg.gain, t2, 0.005, 0.16, 0.16), fg);
+      }
     });
+  }
+
+  /** Distant temple wind-chime: a few pentatonic bell strikes far off in the orchard. */
+  private windChime(t: number, level: number): void {
+    const shot = new Shot(this.transient);
+    const out = this.stereo(shot, rand(-0.8, 0.8), this.amb);
+    const scale = [587.3, 659.3, 784, 880, 987.8, 1174.7];
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      this.bell(shot, scale[Math.floor(Math.random() * scale.length)]!, t + i * rand(0.15, 0.5), 2.4, 0.012 * level, out);
+    }
+  }
+
+  /** Lone guqin-like pluck (Karplus-ish: decaying saw through a closing lowpass). */
+  private qinPluck(t: number, level: number): void {
+    const shot = new Shot(this.transient);
+    const out = this.stereo(shot, rand(-0.5, 0.5), this.amb);
+    const notes = [146.8, 164.8, 196, 220, 246.9];
+    const f = notes[Math.floor(Math.random() * notes.length)]!;
+    const lp = this.filt(shot, 'lowpass', 2400, 1.5, out);
+    lp.frequency.setValueAtTime(2400, t);
+    lp.frequency.exponentialRampToValueAtTime(260, t + 1.6);
+    const g = this.gain(shot, 0, lp);
+    this.osc(shot, 'sawtooth', f, t, this.env(g.gain, t, 0.003, 0.02 * level, 2.2), g);
+    // slide (吟猱) — slight pitch wobble on the partner tone
+    const g2 = this.gain(shot, 0, lp);
+    this.osc(shot, 'triangle', f * 2, t + 0.01, this.env(g2.gain, t + 0.01, 0.003, 0.008 * level, 1.4), g2);
   }
 
   harvestStart(tier: PeachTier): void {

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   barkTexture,
   clothTexture,
+  dappleTexture,
   glowSprite,
   groundTexture,
   lacquerTexture,
@@ -24,19 +25,42 @@ export class MaterialLibrary {
   readonly clothTex = clothTexture();
   readonly glow = glowSprite();
   readonly sparkle = sparkleSprite();
+  readonly dapple = dappleTexture();
 
-  readonly ground = new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.95, metalness: 0 });
-  readonly path = new THREE.MeshStandardMaterial({ map: this.pathTex, roughness: 0.92, metalness: 0 });
-  readonly bark = new THREE.MeshStandardMaterial({ map: this.barkTex, color: '#a08070', roughness: 0.95 });
+  readonly ground = new THREE.MeshStandardMaterial({ map: this.groundTex, color: '#c8d4c0', roughness: 0.92, metalness: 0 });
+  readonly path = new THREE.MeshStandardMaterial({ map: this.pathTex, color: '#d8d0c4', roughness: 0.78, metalness: 0 });
+  readonly bark = new THREE.MeshStandardMaterial({ map: this.barkTex, color: '#c8a894', roughness: 0.9 });
+  /** Moonlight shards on the floor (leaf dapple), additive. */
+  readonly moonShard = new THREE.MeshBasicMaterial({
+    map: this.dapple,
+    color: '#8fa0d8',
+    transparent: true,
+    opacity: 0.38,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+  });
+  /** Gold-leaf dapple under fruiting trees (peach glow bouncing). */
+  readonly goldShard = new THREE.MeshBasicMaterial({
+    map: this.dapple,
+    color: '#c9a227',
+    transparent: true,
+    opacity: 0.32,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+  });
   readonly leaves = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.85,
     flatShading: true,
     side: THREE.DoubleSide,
   });
-  readonly grass = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
-  readonly stone = new THREE.MeshStandardMaterial({ map: this.stoneTex, color: '#8d8c84', roughness: 0.9 });
-  readonly rock = new THREE.MeshStandardMaterial({ map: this.stoneTex, color: '#6c6b64', roughness: 0.95, flatShading: true });
+  readonly grass = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide, color: '#d0e0c8' });
+  readonly stone = new THREE.MeshStandardMaterial({ map: this.stoneTex, color: '#a8a69c', roughness: 0.88 });
+  readonly rock = new THREE.MeshStandardMaterial({ map: this.stoneTex, color: '#8a8a84', roughness: 0.92, flatShading: true });
   readonly lacquer = new THREE.MeshStandardMaterial({ map: this.lacquerTex, roughness: 0.45, metalness: 0.05 });
   readonly darkWood = new THREE.MeshStandardMaterial({ color: '#2a1d16', roughness: 0.8 });
   readonly roofTile = new THREE.MeshStandardMaterial({ color: '#23302e', roughness: 0.6, metalness: 0.1 });
