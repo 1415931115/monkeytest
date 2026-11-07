@@ -996,7 +996,7 @@ export class Howler {
   private side = 1;
   private readonly head = new THREE.Group();
   private readonly arms: THREE.Group[] = [];
-  private readonly eyes: THREE.Mesh[] = [];
+  private readonly eyes: THREE.Object3D[] = [];
   private readonly target = new THREE.Vector3();
 
   constructor(mats: MaterialLibrary) {
@@ -1011,7 +1011,8 @@ export class Howler {
       this.root.add(mesh(limb(new THREE.Vector3(side * 0.5, 3.4, 0), new THREE.Vector3(side * 0.9, 1.7, 0.4), 0.22, 0.14, 8), hide));
       this.root.add(mesh(limb(new THREE.Vector3(side * 0.9, 1.7, 0.4), new THREE.Vector3(side * 0.8, 0, -0.2), 0.14, 0.08, 8), hide));
     }
-    // hunched torso
+    // hunched torso — crimson-ink court robes over stilts (fairy attire)
+    const fk = fairyKit();
     const torsoPts = [
       [0.1, 0],
       [0.7, 0.3],
@@ -1020,59 +1021,62 @@ export class Howler {
       [0.5, 2.7],
       [0.15, 2.9],
     ].map(([r, y]) => new THREE.Vector2(r, y));
-    const torso = mesh(new THREE.LatheGeometry(torsoPts, 14), hide);
+    const torso = mesh(new THREE.LatheGeometry(torsoPts, 14), fk.jinRobe);
     torso.position.set(0, 3.2, 0);
     torso.rotation.x = 0.55;
     this.root.add(torso);
-    // ribs of bone
-    for (let i = 0; i < 5; i++) {
-      const rib = mesh(new THREE.TorusGeometry(0.85 - i * 0.06, 0.04, 4, 16, Math.PI * 1.2), m.howlerBone, false);
-      rib.position.set(0, 3.7 + i * 0.4, 0.35 + i * 0.22);
-      rib.rotation.set(Math.PI / 2 + 0.55, 0, -Math.PI * 0.1);
-      this.root.add(rib);
+    // gold-thread sash + gauze overskirt panels (reads as court fairy dress at distance)
+    const robeSash = mesh(new THREE.TorusGeometry(0.78, 0.05, 5, 18), fk.jinGold, false);
+    robeSash.position.set(0, 4.05, 0.55);
+    robeSash.rotation.set(Math.PI / 2 + 0.55, 0, 0);
+    this.root.add(robeSash);
+    for (const side of [-1, 1]) {
+      const panel = mesh(new THREE.PlaneGeometry(0.55, 1.6, 1, 3), fk.jinRobe, false);
+      panel.geometry.translate(0, -0.7, 0);
+      panel.position.set(side * 0.55, 4.4, 0.7);
+      panel.rotation.set(0.35, side * 0.35, side * 0.15);
+      this.root.add(panel);
     }
-    // neck + skull
+    // neck + 仙衣妖面 head (FaceRig jin): ashen ghost face, TWO red HDR eyes, fangs — no bone snout/antlers
     this.head.position.set(0, 5.6, 1.7);
     this.root.add(this.head);
-    this.head.add(mesh(limb(new THREE.Vector3(0, -0.6, -0.6), new THREE.Vector3(0, 0, 0), 0.25, 0.2, 8), hide));
-    const skull = mesh(new THREE.SphereGeometry(0.5, 14, 10), m.howlerBone);
-    skull.scale.set(0.8, 0.85, 1.5);
-    skull.position.set(0, 0.1, 0.35);
+    this.head.add(mesh(limb(new THREE.Vector3(0, -0.55, -0.45), new THREE.Vector3(0, 0, 0.05), 0.18, 0.14, 8), fk.skin.jin));
+    const skull = mesh(new THREE.SphereGeometry(0.32, 18, 14), fk.skin.jin);
+    skull.scale.set(0.95, 1.15, 0.9);
+    skull.position.set(0, 0.12, 0.15);
     this.head.add(skull);
-    const snout = mesh(new THREE.ConeGeometry(0.28, 0.9, 8), m.howlerBone);
-    snout.rotation.x = Math.PI / 2;
-    snout.position.set(0, -0.05, 1.1);
-    this.head.add(snout);
-    // many eyes
-    const eyeGeo = new THREE.SphereGeometry(0.07, 8, 6);
-    const eyeSpots = [
-      [-0.22, 0.25, 0.9],
-      [0.22, 0.25, 0.9],
-      [-0.32, 0.1, 0.75],
-      [0.32, 0.1, 0.75],
-      [-0.15, 0.4, 0.7],
-      [0.15, 0.4, 0.7],
-      [0, 0.32, 0.95],
-    ];
-    for (const [x, y, z] of eyeSpots) {
-      const e = mesh(eyeGeo, m.howlerEye, false);
-      e.position.set(x, y, z);
-      e.scale.setScalar(x === 0 ? 1.3 : 1);
-      this.eyes.push(e);
-      this.head.add(e);
+    const face = new FaceRig(this.head, 'jin', 0.32, new THREE.Vector3(0, 0.12, 0.15), new THREE.Vector3(0.95, 1.15, 0.9))
+      .skin(false)
+      .addEyes(0.055, 0.45)
+      .addThirdEye(0.04)
+      .addFangs(0.11, 0.22, 2);
+    this.eyes.push(...face.eyes);
+    // ink-black court hair + gold pins
+    {
+      const cap = mesh(new THREE.SphereGeometry(0.34, 16, 12, Math.PI / 2 + 0.55, Math.PI * 2 - 1.1, 0, Math.PI * 0.7), fk.hair);
+      cap.scale.set(0.95, 1.15, 0.9);
+      cap.position.set(0, 0.12, 0.15);
+      this.head.add(cap);
+      for (const side of [-1, 1]) {
+        const bun = mesh(new THREE.SphereGeometry(0.11, 12, 8), fk.hair);
+        bun.position.set(side * 0.2, 0.42, 0.02);
+        const pin = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.32, 5), fk.jinGold, false);
+        pin.position.copy(bun.position);
+        pin.rotation.set(0.25, 0, side * 1.0);
+        this.head.add(bun, pin);
+      }
+      const fall = mesh(new THREE.PlaneGeometry(0.45, 1.1, 1, 4), fk.hair, false);
+      fall.geometry.translate(0, -0.55, 0);
+      fall.position.set(0, 0.25, -0.25);
+      fall.rotation.x = 0.35;
+      this.head.add(fall);
     }
-    // antlers: branching bone
+    // pointed ghost-fairy ears
     for (const side of [-1, 1]) {
-      const base = new THREE.Vector3(side * 0.3, 0.45, 0.2);
-      const a1 = new THREE.Vector3(side * 1.1, 1.6, -0.1);
-      const a2 = new THREE.Vector3(side * 1.9, 2.4, -0.3);
-      const a3 = new THREE.Vector3(side * 1.4, 2.9, 0.2);
-      const a4 = new THREE.Vector3(side * 0.7, 2.3, -0.4);
-      this.head.add(mesh(limb(base, a1, 0.09, 0.07, 6), m.howlerBone));
-      this.head.add(mesh(limb(a1, a2, 0.07, 0.03, 5), m.howlerBone));
-      this.head.add(mesh(limb(a1, a3, 0.06, 0.025, 5), m.howlerBone));
-      this.head.add(mesh(limb(a1, a4, 0.05, 0.02, 5), m.howlerBone));
-      this.head.add(mesh(limb(a2, a2.clone().add(new THREE.Vector3(side * 0.5, 0.3, 0.2)), 0.03, 0.01, 4), m.howlerBone));
+      const ear = mesh(new THREE.ConeGeometry(0.05, 0.22, 5), fk.skin.jin, false);
+      ear.position.set(side * 0.32, 0.18, 0.05);
+      ear.rotation.set(-0.25, 0, -side * 1.1);
+      this.head.add(ear);
     }
     const fj = accents();
     // 裂冠：残缺凤冠金环（缺口）+ 高低不齐冠尖，一枚断片歪斜
@@ -1100,9 +1104,9 @@ export class Howler {
     shard.rotation.set(0.4, 0, 1.1);
     crown.add(shard);
     this.head.add(crown);
-    // 半脸金纹：沿颅骨右侧表面爬行的金色裂纹
+    // 半脸金纹：沿妖面右侧爬行的金色裂纹（对齐 FaceRig jin 头心）
     const surf = (u: number, v: number) =>
-      new THREE.Vector3(0.4 * Math.sin(u) * Math.cos(v), 0.425 * Math.sin(v), 0.75 * Math.cos(u) * Math.cos(v)).multiplyScalar(1.03).add(new THREE.Vector3(0, 0.1, 0.35));
+      new THREE.Vector3(0.3 * Math.sin(u) * Math.cos(v), 0.37 * Math.sin(v), 0.29 * Math.cos(u) * Math.cos(v)).multiplyScalar(1.03).add(new THREE.Vector3(0, 0.12, 0.15));
     const veinPaths: [number, number][][] = [
       [[0.15, 0.55], [0.35, 0.4], [0.5, 0.45], [0.75, 0.3], [1.0, 0.35], [1.3, 0.15]],
       [[0.35, 0.4], [0.45, 0.15], [0.7, 0.05], [0.95, -0.1], [1.25, -0.2]],
@@ -1117,13 +1121,6 @@ export class Howler {
         this.head.add(mesh(limb(surf(u0, v0), surf(u1, v1), 0.018, 0.012, 4), fj.goldVein, false));
       }
     }
-    // 金瞳强调：右侧主眼套金环
-    const goldRing = mesh(new THREE.TorusGeometry(0.1, 0.018, 4, 14), fj.goldVein, false);
-    goldRing.position.set(0.22, 0.25, 0.9);
-    goldRing.rotation.set(-0.2, 0.45, 0);
-    const goldIris = mesh(new THREE.SphereGeometry(0.05, 8, 6), fj.goldEye, false);
-    goldIris.position.set(0.23, 0.25, 0.93);
-    this.head.add(goldRing, goldIris);
     // 背后召妖符阵：金线圆阵（双环 + 八卦刻度 + 六芒 + 符点）
     const sigil = new THREE.Group();
     sigil.name = 'howlerSigil';
