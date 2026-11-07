@@ -51,12 +51,12 @@ const DEATH_COPY: Record<DeathCause, { glyph: string; title: string; reason: str
   grabber: {
     glyph: '紫陌',
     title: '紫陌掠命',
-    reason: 'Zi Mo caught you twice. Her grip tears away half your life — light flinches her, shadows hide you.',
+    reason: '紫陌两度扣住你的心口，掌心竖瞳吸尽了命火。灯光能逼退她，暗处可以藏身。',
   },
   caller: {
     glyph: '青鸾',
     title: '青鸾点名',
-    reason: 'Qing Luan called “猴哥——” from behind. You turned and looked. Never answer her while you pick.',
+    reason: '青鸾在身后唤了一声「猴哥——」，你回了头。摘桃时，切莫应她。',
   },
 };
 
@@ -258,7 +258,7 @@ export class Game {
     });
     this.on('#mute-button', 'click', () => {
       this.audio.setMuted(!this.audio.muted);
-      this.el('#mute-button').textContent = this.audio.muted ? 'Sound: Off' : 'Sound: On';
+      this.el('#mute-button').textContent = this.audio.muted ? '声 · 关' : '声 · 开';
       this.audio.uiClick();
     });
     for (const id of ['#restart-button', '#retry-button', '#again-button']) {
@@ -353,7 +353,7 @@ export class Game {
   }
 
   private updateBestLine(): void {
-    this.el('#best-line').textContent = this.bestScore > 0 ? `Best haul: ${this.bestScore.toLocaleString('en-US')}` : '';
+    this.el('#best-line').textContent = this.bestScore > 0 ? `最佳收获：${this.bestScore.toLocaleString('zh-CN')}` : '';
   }
 
   // --------------------------------------------------------------- states
@@ -405,9 +405,9 @@ export class Game {
 
   private harvestHint(): string {
     const pick = this.input.touchMode
-      ? 'Hold the pick control on a glowing peach'
-      : 'Hold E / click on a glowing peach to pick';
-    return `Light on · ${pick} · If something calls “猴哥——” while you pick, never turn around.`;
+      ? '对准发光的桃子长按「摘」'
+      : '对准发光的桃子长按 E / 鼠标';
+    return `灯已点亮 · ${pick} · 摘桃时若有人唤「猴哥——」，千万别回头。`;
   }
 
   /** Reset the world for a fresh night. Does not change the visible state. */
@@ -538,7 +538,7 @@ export class Game {
     this.el('#dead-glyph').textContent = copy.glyph;
     this.el('#dead-title').textContent = copy.title;
     this.el('#dead-reason').textContent = copy.reason;
-    this.el('#dead-lost').textContent = lost > 0 ? `Haul lost: ${lost.toLocaleString('en-US')}` : 'You carried nothing out.';
+    this.el('#dead-lost').textContent = lost > 0 ? `散落桃值：${lost.toLocaleString('zh-CN')}` : '你两手空空。';
     this.deadDelay = cause === 'caller' ? 1.1 : 1.5;
     this.setState('dead');
   }
@@ -564,12 +564,12 @@ export class Game {
       const row = document.createElement('div');
       row.className = 'result-row';
       row.style.color = TIER_COLORS[t];
-      row.textContent = `${TIER_NAMES[t]} × ${this.satchel[t]} = ${(this.satchel[t] * TIER_VALUE[t]).toLocaleString('en-US')}`;
+      row.textContent = `${TIER_NAMES[t]} × ${this.satchel[t]} = ${(this.satchel[t] * TIER_VALUE[t]).toLocaleString('zh-CN')}`;
       rows.appendChild(row);
     }
-    if (this.haul === 0) rows.textContent = 'You escaped empty-handed.';
-    this.el('#result-total').textContent = this.haul.toLocaleString('en-US');
-    this.el('#result-best').textContent = newBest ? 'New best haul!' : `Best haul: ${this.bestScore.toLocaleString('en-US')}`;
+    if (this.haul === 0) rows.textContent = '空手而归。';
+    this.el('#result-total').textContent = this.haul.toLocaleString('zh-CN');
+    this.el('#result-best').textContent = newBest ? '新的最佳收获！' : `最佳收获：${this.bestScore.toLocaleString('zh-CN')}`;
     this.updateBestLine();
     this.hud.clearTransient();
     this.player.frozen = true;
@@ -688,7 +688,7 @@ export class Game {
       if (ev === 'voice') {
         // The call is always the Chinese 「猴哥——」, never romanised.
         this.hud.showSubtitle('猴哥——', 2.2);
-        this.hud.showBanner('青鸾点名', 'Do NOT turn around.', 'caller', 2.6);
+        this.hud.showBanner('青鸾点名', '别回头。', 'caller', 2.6);
       }
       // 圣地护体: her call still plays outside the circle, but looking is safe inside it.
       if (c.armed && !this.sanctuary && this.state === 'playing' && this.isLookingAt(c)) {
@@ -728,7 +728,7 @@ export class Game {
         this.hunt = false;
         this.howler.dismiss();
         this.hud.setHunt(null);
-        this.hud.showBanner('金阙退去', 'The orchard exhales. For now.', 'info', 2.5);
+        this.hud.showBanner('金阙退去', '园子暂且松了口气。', 'info', 2.5);
       } else this.hud.setHunt(this.huntTimer / HUNT_DURATION);
     }
     const huntTarget = this.hunt ? 1 : 0;
@@ -758,14 +758,14 @@ export class Game {
     if (zone !== this.lastZone) {
       const first = this.lastZone < 0;
       this.lastZone = zone;
-      this.hud.setZone(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'Pick peaches · Escape through a cold-blue shrine');
+      this.hud.setZone(ZONE_GLYPHS[zone], ZONE_NAMES[zone], '摘桃 · 寻冷蓝石阙归去');
       if (!first) this.hud.showBanner(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'info', 2.8);
     }
     if (this.harvesting && target) {
       this.hud.setPrompt(null, 0);
-      this.hud.setPrompt({ text: `Picking ${TIER_NAMES[target.tier]}…`, value: `+${TIER_VALUE[target.tier].toLocaleString('en-US')}`, key: this.input.touchMode ? 'HOLD' : 'E' }, this.harvestProgress);
+      this.hud.setPrompt({ text: `正在摘${TIER_NAMES[target.tier]}…`, value: `+${TIER_VALUE[target.tier].toLocaleString('zh-CN')}`, key: this.input.touchMode ? '按住' : 'E' }, this.harvestProgress);
     } else if (target) {
-      this.hud.setPrompt({ text: `Hold to pick ${TIER_NAMES[target.tier]}`, value: `+${TIER_VALUE[target.tier].toLocaleString('en-US')}`, key: this.input.touchMode ? 'HOLD' : 'E' }, 0);
+      this.hud.setPrompt({ text: `长按摘${TIER_NAMES[target.tier]}`, value: `+${TIER_VALUE[target.tier].toLocaleString('zh-CN')}`, key: this.input.touchMode ? '按住' : 'E' }, 0);
     } else {
       this.hud.setPrompt(null, 0);
     }
@@ -805,7 +805,7 @@ export class Game {
       this.sanctuaryCircle.z = site.position.z;
       if (!wasSanctuary && !this.sanctuaryBannerShown) {
         this.sanctuaryBannerShown = true;
-        this.hud.showBanner('灯火归位', 'Stay in the light.', 'info', 1.5);
+        this.hud.showBanner('灯火归位', '守在灯里。', 'info', 1.5);
       }
     }
   }
@@ -872,7 +872,7 @@ export class Game {
     this.satchel[peach.tier]++;
     this.haul += TIER_VALUE[peach.tier];
     this.hud.bumpSlot(peach.tier);
-    this.hud.toast(`${TIER_NAMES[peach.tier]}  +${TIER_VALUE[peach.tier].toLocaleString('en-US')}`, peach.tier);
+    this.hud.toast(`${TIER_NAMES[peach.tier]}  +${TIER_VALUE[peach.tier].toLocaleString('zh-CN')}`, peach.tier);
     this.burst.emit(peach.position, new THREE.Color(TIER_COLORS[peach.tier]), 14 + peach.tier * 10, 1.4, this.rng);
     this.endHarvest();
 
@@ -903,7 +903,7 @@ export class Game {
     this.audio.chaserHit();
     this.audio.playerHurt();
     this.hud.flash('#a00a14', 0.7);
-    this.hud.showBanner('紫陌掠命', p.health > 0 ? 'Half your life torn away.' : 'Nothing left.', 'danger', 2.2);
+    this.hud.showBanner('紫陌掠命', p.health > 0 ? '命火被撕去一半。' : '命火已尽。', 'danger', 2.2);
     if (p.health <= 0) this.die('grabber');
   }
 

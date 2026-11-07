@@ -55,6 +55,8 @@ function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, shadow = true): TH
 }
 
 /** Shared accent materials for monster-form identity marks (created once, reused by every instance). */
+let zimoSkin: THREE.MeshStandardMaterial | null = null;
+let qingRobe: THREE.MeshStandardMaterial | null = null;
 let accentCache: ReturnType<typeof makeAccents> | null = null;
 function accents(): ReturnType<typeof makeAccents> {
   return (accentCache ??= makeAccents());
@@ -166,7 +168,9 @@ export class Grabber {
   }
 
   private build(m: MaterialLibrary): void {
-    const skin = m.grabberSkin;
+    // 苍白肤 with a lotus-lilac cast (紫陌), so lantern light reads pale-violet rather than tan
+    const skin = (zimoSkin ??= m.grabberSkin.clone());
+    skin.color.set('#c8b4d8');
     this.hips.position.y = 0.88;
     this.root.add(this.hips);
     const pelvis = mesh(new THREE.SphereGeometry(0.22, 12, 8), skin);
@@ -268,6 +272,29 @@ export class Grabber {
       upper.add(lower);
       this.spine.add(upper);
       this.arms.push({ upper, lower });
+    }
+    // 藕荷薄纱披帛：从双肩垂落、边缘散雾的半透明纱带
+    {
+      const fx = accents();
+      for (const side of [-1, 1]) {
+        const g = new THREE.PlaneGeometry(0.22, 1.1, 1, 6);
+        const pa = g.getAttribute('position') as THREE.BufferAttribute;
+        for (let i = 0; i < pa.count; i++) {
+          const y = pa.getY(i);
+          pa.setZ(i, Math.sin(y * 4 + side) * 0.06 + (y < 0 ? -y * 0.18 : 0));
+          pa.setX(i, pa.getX(i) * (1 + Math.max(0, -y) * 0.9));
+        }
+        g.computeVertexNormals();
+        const veil = mesh(g, fx.mist, false);
+        veil.position.set(side * 0.34, 0.25, -0.12);
+        veil.rotation.set(0.2, side * 0.4, side * 0.12);
+        this.spine.add(veil);
+      }
+      const shawl = mesh(new THREE.TorusGeometry(0.34, 0.06, 5, 18, Math.PI * 1.3), fx.mist, false);
+      shawl.position.set(0, 0.72, 0);
+      shawl.rotation.set(Math.PI / 2 + 0.2, 0, -Math.PI * 0.15);
+      shawl.scale.z = 2.2;
+      this.spine.add(shawl);
     }
     // head
     this.head.position.set(0, 0.86, 0.1);
@@ -567,6 +594,7 @@ export class Caller {
   private readonly heading = { v: 0 };
   private readonly head = new THREE.Group();
   private readonly arms: THREE.Group[] = [];
+  private readonly mouth = new THREE.Group();
   private visibleAmt = 0;
 
   constructor(mats: MaterialLibrary, readonly zone: number) {
@@ -598,7 +626,10 @@ export class Caller {
       if (pos.getY(i) < 0.05) pos.setY(i, Math.max(-0.02, Math.sin(i * 12.9898) * 0.12 + 0.06));
     }
     robeGeo.computeVertexNormals();
-    const robe = mesh(robeGeo, m.robe);
+    // 青鸾 robe: pine-smoke teal hunting dress
+    const robeMat = (qingRobe ??= m.robe.clone());
+    robeMat.color.set('#4f9a92');
+    const robe = mesh(robeGeo, robeMat);
     this.root.add(robe);
     // long neck — 青鸾怪物态：鸟颈异常拉长（S 形两段）
     const fq = accents();
@@ -625,7 +656,7 @@ export class Caller {
     mask.scale.set(0.95, 1.25, 0.75);
     mask.position.set(0, 0.55, 0.04);
     this.head.add(mask);
-    const hood = mesh(new THREE.SphereGeometry(0.27, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), m.robe);
+    const hood = mesh(new THREE.SphereGeometry(0.27, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), robeMat);
     hood.scale.set(1, 1.3, 1);
     hood.position.set(0, 0.6, -0.04);
     hood.rotation.x = -0.35;
@@ -662,6 +693,21 @@ export class Caller {
     beakLine.rotation.set(0, Math.PI / 2, Math.PI * 0.6);
     beakLine.position.set(0, 0.54, 0.25);
     this.head.add(beak, hook, beakLine);
+    // 「猴哥——」口型：声带外翻如笛 — 喙下一圈张开的喉笛，喊名时张大并发青光
+    this.mouth.position.set(0, 0.47, 0.215);
+    const lip = mesh(new THREE.TorusGeometry(0.04, 0.009, 5, 14), fq.beak, false);
+    const throat = mesh(new THREE.CircleGeometry(0.036, 14), fq.iceIris, false);
+    throat.position.z = -0.004;
+    for (let i = 0; i < 5; i++) {
+      const reed = mesh(new THREE.CylinderGeometry(0.004, 0.006, 0.05, 5), fq.goldThread, false);
+      const a = (i / 5) * Math.PI * 2;
+      reed.position.set(Math.cos(a) * 0.045, Math.sin(a) * 0.045, 0.012);
+      reed.rotation.set(Math.PI / 2, 0, 0);
+      this.mouth.add(reed);
+    }
+    this.mouth.add(lip, throat);
+    this.mouth.scale.setScalar(0.35);
+    this.head.add(this.mouth);
     // 肩羽环：两层青羽向外下披，金丝描边一圈
     for (let tier = 0; tier < 2; tier++) {
       const count = 16 - tier * 4;
@@ -690,7 +736,7 @@ export class Caller {
     for (const side of [-1, 1]) {
       const arm = new THREE.Group();
       arm.position.set(side * 0.3, 2.0, 0);
-      arm.add(mesh(limb(new THREE.Vector3(0, 0, 0), new THREE.Vector3(side * 0.08, -1.0, 0.05), 0.07, 0.04, 6), m.robe));
+      arm.add(mesh(limb(new THREE.Vector3(0, 0, 0), new THREE.Vector3(side * 0.08, -1.0, 0.05), 0.07, 0.04, 6), robeMat));
       arm.add(mesh(limb(new THREE.Vector3(side * 0.08, -1.0, 0.05), new THREE.Vector3(side * 0.1, -1.55, 0.12), 0.035, 0.028, 6), m.grabberSkin));
       for (let f = 0; f < 4; f++) {
         arm.add(mesh(limb(new THREE.Vector3(side * 0.1, -1.55, 0.12), new THREE.Vector3(side * (0.06 + f * 0.03), -1.9, 0.14 + f * 0.01), 0.012, 0.006, 4), m.grabberSkin, false));
@@ -815,6 +861,9 @@ export class Caller {
     this.root.rotation.y = this.heading.v;
     const tilt = this.state === 'calling' ? Math.min(0.5, this.timer * 0.25) : 0.1;
     this.head.rotation.set(Math.sin(elapsed * 0.7) * 0.05, 0, tilt);
+    const calling = this.state === 'calling' && this.callDelay <= 0 && this.window > 1.6;
+    const target = calling ? 1 + Math.sin(elapsed * 9) * 0.12 : 0.35;
+    this.mouth.scale.setScalar(this.mouth.scale.x + (target - this.mouth.scale.x) * Math.min(1, dt * 10));
     this.arms.forEach((a, i) => {
       a.rotation.x = this.state === 'calling' ? -Math.min(0.6, this.timer * 0.3) : Math.sin(elapsed * 0.9 + i) * 0.05;
       a.rotation.z = (i === 0 ? -1 : 1) * 0.05;
@@ -840,6 +889,7 @@ export class Caller {
     this.root.position.y = eye.y - 2.75;
     this.root.rotation.y = Math.atan2(-forward.x, -forward.z);
     this.head.rotation.set(0.15, 0, 0.35);
+    this.mouth.scale.setScalar(1.2);
   }
 }
 
@@ -1048,6 +1098,25 @@ export class Howler {
     sashEdge.rotation.set(Math.PI / 2, 0, Math.PI * 0.75 - Math.PI / 2);
     sashEdge.position.y = 0.3;
     trim.add(sashEdge);
+    // 残破金绣华服：撕裂的长条衣摆随风垂挂，边缘金线
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * 0.2 + (i / 8) * Math.PI * 1.6;
+      const len = 1.4 + Math.sin(i * 2.7) * 0.5;
+      const strip = new THREE.Group();
+      strip.position.set(Math.sin(a) * 0.95, 0.4 + Math.cos(i) * 0.1, Math.cos(a) * 0.95);
+      strip.rotation.y = a;
+      const cloth = mesh(new THREE.PlaneGeometry(0.32, len, 1, 3), fj.inkPurple, false);
+      (cloth.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+      cloth.position.y = -len / 2;
+      cloth.rotation.z = Math.sin(i * 1.9) * 0.12;
+      const hemLine = mesh(new THREE.BoxGeometry(0.3, 0.03, 0.01), fj.gold, false);
+      hemLine.position.y = -len + 0.05;
+      hemLine.rotation.z = Math.sin(i * 3.3) * 0.4;
+      const seam = mesh(new THREE.BoxGeometry(0.02, len * 0.8, 0.01), fj.goldVein, false);
+      seam.position.set(0.12, -len * 0.45, 0.005);
+      strip.add(cloth, hemLine, seam);
+      trim.add(strip);
+    }
     this.root.add(trim);
     // arms dragging to the ground
     for (const side of [-1, 1]) {
@@ -1067,6 +1136,25 @@ export class Howler {
         cuff.position.set(side * x, y, z);
         cuff.rotation.x = Math.PI / 2 - 0.25;
         arm.add(cuff);
+      }
+      // 折扇并入施法手势（右手）：金骨扇面
+      if (side > 0) {
+        const fan = new THREE.Group();
+        fan.position.set(side * 0.7, -4.5, 1.25);
+        fan.rotation.set(-0.5, 0, 0.3);
+        for (let r = 0; r < 9; r++) {
+          const rib = mesh(new THREE.BoxGeometry(0.03, 0.9, 0.015), fj.gold, false);
+          rib.geometry.translate(0, 0.45, 0);
+          rib.rotation.z = -0.9 + (r / 8) * 1.8;
+          fan.add(rib);
+        }
+        const leaf = mesh(new THREE.RingGeometry(0.35, 0.9, 20, 1, Math.PI / 2 - 0.9, 1.8), fj.inkPurple, false);
+        (leaf.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+        leaf.rotation.z = 0;
+        const leafEdge = mesh(new THREE.TorusGeometry(0.9, 0.02, 3, 20, 1.8), fj.goldVein, false);
+        leafEdge.rotation.z = Math.PI / 2 - 0.9;
+        fan.add(leaf, leafEdge);
+        arm.add(fan);
       }
       this.arms.push(arm);
       this.root.add(arm);

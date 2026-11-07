@@ -8,7 +8,7 @@ export type Tier = 0 | 1 | 2 | 3;
 export const TIER_YEARS = [10, 100, 1000, 10000] as const;
 export const TIER_VALUE = [10, 100, 1000, 10000] as const;
 export const TIER_HARVEST_TIME = [0.9, 1.5, 2.3, 3.2] as const;
-export const TIER_NAMES = ['10-year peach', '100-year peach', '1,000-year peach', '10,000-year peach'] as const;
+export const TIER_NAMES = ['十年桃', '百年桃', '千年桃', '万年蟠桃'] as const;
 
 /** Tier weights per zone (10y,100y,1000y,10000y). */
 const ZONE_WEIGHTS: number[][] = [

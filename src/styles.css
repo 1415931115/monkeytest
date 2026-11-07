@@ -984,3 +984,146 @@ h2 {
     opacity: 0;
   }
 }
+
+/* ================================================================
+   Ink-night Eastern HUD skin (偷桃前夜) — overrides the lacquer base.
+   Palette: ink-purple #1a0f2e, peach gold #c9a227, plum #6b2d5c,
+   pine-smoke #2d4a3e, lantern vermillion #ff5a2a, extract blue.
+   ================================================================ */
+:root {
+  --ink: #0b0714;
+  --lacquer: rgba(26, 15, 46, 0.74);
+  --lacquer-solid: #1a0f2e;
+  --gold: #d8b04a;
+  --gold-dim: rgba(201, 162, 39, 0.5);
+  --blood: #ff5a2a;
+  --jade: #6fc3a2;
+  --text: #f1e6cf;
+  --muted: #a99bbd;
+  --serif: 'Noto Serif CJK SC', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'Noto Serif', Georgia, serif;
+  --ink-wash: radial-gradient(120% 90% at 20% 0%, rgba(107, 45, 92, 0.38), transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(45, 74, 62, 0.42), transparent 65%),
+    linear-gradient(180deg, rgba(30, 18, 52, 0.94), rgba(12, 8, 22, 0.96));
+}
+.meter-label {
+  font-size: 13px;
+  width: 1.2em;
+  text-align: center;
+  color: var(--text);
+  opacity: 0.85;
+  text-shadow: 0 0 6px currentColor;
+}
+.meter-health .meter-label { color: #ffb08a; }
+.meter-health .bar i { background: linear-gradient(90deg, #5a0e1e, #c4282a 55%, #ff7a3a); }
+.meter-battery .bar i { background: linear-gradient(90deg, #8a3a12, #ff5a2a 50%, #ffd36a); }
+.meter-stamina .bar i { background: linear-gradient(90deg, #1f3d33, #6fc3a2); }
+.meter .bar {
+  border-color: rgba(216, 176, 74, 0.45);
+  background: rgba(10, 6, 20, 0.6);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.8);
+}
+#vitals,
+#satchel {
+  background: var(--ink-wash);
+  border: 1px solid rgba(216, 176, 74, 0.32);
+  box-shadow: 0 0 0 3px rgba(11, 7, 20, 0.55), 0 8px 30px rgba(0, 0, 0, 0.55);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+}
+.slot {
+  border-color: rgba(216, 176, 74, 0.28);
+  background: rgba(11, 7, 20, 0.5);
+  border-radius: 46% 46% 8px 8px / 30% 30% 8px 8px;
+}
+.slot small { letter-spacing: 0.15em; }
+#haul small { letter-spacing: 0.3em; color: var(--gold); }
+#zone-glyph {
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle at 50% 40%, #b0302a, #6b1418 70%);
+  color: #fff1d8;
+  border: 1px solid #ffb08a66;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(255, 90, 42, 0.35);
+}
+#zone-name { font-size: 17px; letter-spacing: 0.18em; }
+#objective { color: #cdbfe0; letter-spacing: 0.08em; }
+#compass {
+  background: linear-gradient(90deg, transparent, rgba(26, 15, 46, 0.78) 18%, rgba(26, 15, 46, 0.78) 82%, transparent);
+  border-top: 1px solid rgba(216, 176, 74, 0.35);
+  border-bottom: 1px solid rgba(216, 176, 74, 0.35);
+}
+.compass-label { color: var(--gold); font-weight: 700; }
+#compass-markers .marker.shrine { color: #8fd8ff; text-shadow: 0 0 8px #3ab0ff; }
+#prompt {
+  background: var(--ink-wash);
+  border: 1px solid rgba(216, 176, 74, 0.45);
+  letter-spacing: 0.1em;
+}
+#banner-title { letter-spacing: 0.4em; font-weight: 700; text-shadow: 0 0 18px currentColor, 0 2px 4px #000; }
+#banner-sub { letter-spacing: 0.15em; }
+#banner.caller #banner-title { color: #9fe8ff; }
+#banner.howl #banner-title { color: #ffd36a; }
+#banner.danger #banner-title { color: #ff6a4a; }
+#subtitle { font-size: clamp(26px, 5vw, 44px); letter-spacing: 0.35em; color: #c8f2ff; text-shadow: 0 0 22px #3ad0ff, 0 0 4px #000; }
+.ring-fg { stroke: var(--gold); }
+.screen {
+  background: radial-gradient(ellipse at 50% 35%, rgba(26, 15, 46, 0.45), rgba(8, 5, 14, 0.92));
+}
+.panel {
+  background: var(--ink-wash);
+  border: 1px solid rgba(216, 176, 74, 0.55);
+  box-shadow: 0 0 0 4px rgba(8, 5, 14, 0.7), 0 0 0 5px rgba(216, 176, 74, 0.3), 0 30px 80px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(0, 0, 0, 0.45);
+}
+.panel::before {
+  /* ink-brush top rule with gold peach knot */
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold) 20%, #ff8fa8 50%, var(--gold) 80%, transparent);
+  opacity: 0.6;
+}
+.title-mark.seal {
+  display: inline-block;
+  padding: 8px 10px;
+  font-size: 40px;
+  color: #fff0dc;
+  background: radial-gradient(circle at 40% 35%, #c4342a, #7a1414 75%);
+  border: 2px solid #ffcf9a55;
+  border-radius: 6px;
+  writing-mode: vertical-rl;
+  text-shadow: none;
+  box-shadow: 0 0 24px rgba(255, 90, 42, 0.45);
+  transform: rotate(-4deg);
+}
+.title-mark { color: #ff6a4a; }
+h1 {
+  letter-spacing: 0.35em;
+  color: #fbe8c4;
+  text-shadow: 0 0 24px rgba(216, 176, 74, 0.45), 0 3px 6px #000;
+}
+.tagline { color: #cdbfe0; letter-spacing: 0.25em; text-transform: none; }
+.rules li { color: #ddd2ea; }
+.rules b { color: var(--gold); }
+.btn { letter-spacing: 0.25em; }
+.btn.primary {
+  background: linear-gradient(180deg, #b0302a, #6b1418);
+  border-color: #ffcf8a;
+  box-shadow: 0 0 18px rgba(255, 90, 42, 0.35);
+  text-transform: none;
+}
+.btn.primary:hover,
+.btn.primary:focus-visible { background: linear-gradient(180deg, #c84030, #7a1a1a); }
+.panel.won .title-mark { color: #8fd8ff; text-shadow: 0 0 22px #3ab0ff; }
+.panel.dead .title-mark { color: #ff5a3a; }
+@media (max-width: 720px) {
+  /* stack vitals under the zone plate so they never collide with the satchel / stick */
+  #vitals {
+    top: calc(108px + var(--safe-t));
+    bottom: auto;
+    gap: 5px;
+    padding: 6px 8px;
+  }
+}

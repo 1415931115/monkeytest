@@ -67,3 +67,31 @@ Baseline defects: near-black ground, muddy tree silhouettes, lantern = yellow bl
 - Orchard readability: canopy vertex colours baked with moonlit-top / ink-purple-underside gradient; pine-smoke teal leaf palette.
 - 「月光碎金」: instanced leaf-dapple decals (moon-blue + peach-gold) along the trail and slanted god-ray cards toward the moon (hunt tints them red).
 - Measured (SwiftShader, active-play): entropy 2.59→4.95 bits, edge density 0.065→0.186, contrast 67.7→103.7, dominant colour share 0.577→0.136.
+
+### Step 2 — Lantern & monkey-arm viewmodel ✅ (`Player.ts`, `ProceduralTextures.ts`)
+- Builds on the PR #9 cage lantern. Filigree rebuild: 6 alternating bronze/iron meridians, 4 latitude rings, 12-knot cloud-scroll band, ruby core + flame cone inside an amber halo, pagoda lid with finial and 6 upturned tips, lotus foot, 4-link chain into the fist bail.
+- Right forearm: canvas fur map (`furTexture`), 6 spiral cloth wraps (`wrapTexture`) with frayed tail, ragged indigo sleeve with gold hem. Furred hand with 4 curled fingers + thumb and nails.
+- New left guard arm (empty fist, lower-left): reaches forward while picking, tucks to the chest otherwise. Slight roll sway on the lantern hand.
+- Spotlight warmed to `#ffa05a` and emitted 0.7 m ahead of the lantern so the beam no longer blows out the viewmodel.
+
+### Step 3 — Monster heroes ✅ (`Monsters.ts`)
+- 紫陌 (Grabber): lilac-cast pale skin `#c8b4d8`; translucent 藕荷 mist veils from both shoulders + shawl.
+- 青鸾 (Caller): pine-smoke teal robe/hood/sleeves `#4f9a92`; throat-flute mouth (lip ring, ice-blue throat, 5 gold reeds) that opens and pulses while she calls 「猴哥——」 and gapes in the death pose.
+- 金阙 (Howler): 9 torn ink-purple robe strips with gold hems and seams; gold-ribbed folding fan in the right hand.
+
+### Step 4 — Chinese ink-night HUD/UI + audio polish ✅ (`index.html`, `styles.css`, `Hud.ts`, `Game.ts`, `PeachField.ts`, `LevelPath.ts`, `AudioSystem.ts`)
+- All copy in Chinese: `lang="zh-CN"`, title 偷桃前夜, HUD labels (命/力/灯, 十年…万年, 桃值), compass 北/东/南/西, light state 明/熄, all four screens, banners, prompts, death copy, toasts, tier names 十年桃…万年蟠桃, zone names (外园 · 月下桃径 / 雾林 · 薄纱迷径 / 园心 · 母树高枝), zh-CN number formatting.
+- Ink-night CSS skin: ink-purple/gold/vermillion palette, CJK serif stack, ink-wash panels with a gold rule, chamfered vitals/satchel plates, peach-shaped slots, vermillion seal glyphs, cyan 「猴哥——」 subtitle glow. At ≤720 px, vitals move under the zone plate.
+- Audio: lantern toggle re-voiced (chain ticks, cage-lid tap, flame whoosh on / snuff off); new ambient wind-chime and guqin-like pluck; ambient gap 8–22 s. The female 「猴哥」 formant voice is unchanged from PR #9.
+
+### Step 5 — Evidence + scorecard ✅ → `artifacts/final-evidence.md`
+- `npm run build` passes. Scorecard average **5.9/10** (top: lighting, world materials, HUD 7; bottom: mobile layout 4, viewmodel 5, performance 5).
+- Desktop final: entropy 5.01, edge density 0.188, contrast 103.4, within desktop budget (269/300 calls). Mobile: over mobile budget (216/150 calls, 399k/300k triangles); the overage existed at baseline.
+- Open defects:
+  - Lantern is off-screen in mobile portrait (NDC x 1.395).
+  - In mobile landscape, the title and extracted panels scroll.
+  - Worst-case HUD overlaps on mobile (10 portrait / 15 landscape).
+  - 青鸾's teal is lost under the lighting (teal 0.1%).
+  - The lantern toggle changes mean luminance by only 1.2.
+  - 3 Playwright tests still assert English copy (21 pass / 3 fail / 8 skip).
+- Game testing skipped by user override.

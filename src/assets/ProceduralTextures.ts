@@ -423,3 +423,54 @@ export function sparkleSprite(): THREE.CanvasTexture {
   }
   return finish(c, false);
 }
+
+/** Short monkey fur: dense warm-brown strokes along +v (wraps around a forearm). */
+export function furTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const [c, ctx] = makeCanvas(size);
+  const rng = createSeededRandom(53);
+  ctx.fillStyle = '#7a5434';
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 5200; i++) {
+    const x = rng() * size;
+    const y = rng() * size;
+    const l = 3 + rng() * 6;
+    const t = rng();
+    ctx.strokeStyle = t < 0.35 ? `rgba(${60 + rng() * 20},${38 + rng() * 14},22,0.55)` : t < 0.85 ? `rgba(${150 + rng() * 40},${105 + rng() * 30},${60 + rng() * 20},0.45)` : 'rgba(230,200,150,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (rng() - 0.5) * 2.5, y + l);
+    ctx.stroke();
+  }
+  return finish(c);
+}
+
+/** Night-runner arm wrap: coarse woven cloth strip with frayed, stained edges. */
+export function wrapTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const [c, ctx] = makeCanvas(size);
+  const rng = createSeededRandom(61);
+  ctx.fillStyle = '#4a3a30';
+  ctx.fillRect(0, 0, size, size);
+  for (let y = 0; y < size; y += 3) {
+    ctx.fillStyle = `rgba(${90 + rng() * 30},${74 + rng() * 20},${58},0.35)`;
+    ctx.fillRect(0, y, size, 1);
+  }
+  for (let x = 0; x < size; x += 3) {
+    ctx.fillStyle = 'rgba(20,14,10,0.25)';
+    ctx.fillRect(x, 0, 1, size);
+  }
+  for (let i = 0; i < 14; i++) {
+    const g = ctx.createRadialGradient(rng() * size, rng() * size, 0, rng() * size, rng() * size, 18);
+    g.addColorStop(0, 'rgba(40,24,16,0.4)');
+    g.addColorStop(1, 'rgba(40,24,16,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  }
+  // dark edge seams
+  ctx.fillStyle = 'rgba(15,10,8,0.6)';
+  ctx.fillRect(0, 0, size, 4);
+  ctx.fillRect(0, size - 4, size, 4);
+  return finish(c);
+}

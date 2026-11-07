@@ -5,7 +5,7 @@
 export const PATH_LENGTH = 380;
 export const CORRIDOR_HALF_WIDTH = 11;
 export const ZONE_STARTS = [0, 125, 255] as const;
-export const ZONE_NAMES = ['Outer Orchard', 'Mist Grove', 'Heart of the Orchard'] as const;
+export const ZONE_NAMES = ['外园 · 月下桃径', '雾林 · 薄纱迷径', '园心 · 母树高枝'] as const;
 export const ZONE_GLYPHS = ['外园', '雾林', '园心'] as const;
 
 export function pathX(t: number): number {

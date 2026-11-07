@@ -71,7 +71,7 @@ export class Hud {
   };
 
   constructor() {
-    const labels: Record<number, string> = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+    const labels: Record<number, string> = { 0: '北', 90: '东', 180: '南', 270: '西' };
     for (let deg = 0; deg < 360; deg += 15) {
       const el = document.createElement('div');
       el.className = `compass-tick${deg % 45 === 0 ? ' major' : ''}`;
@@ -80,7 +80,7 @@ export class Hud {
       if (labels[deg] || deg % 45 === 0) {
         label = document.createElement('div');
         label.className = 'compass-label';
-        label.textContent = labels[deg] ?? '·';
+        label.textContent = labels[deg] ?? '◇';
         this.compassTrack.appendChild(label);
       }
       this.ticks.push({ el, angle: (deg * Math.PI) / 180, label });
@@ -121,7 +121,7 @@ export class Hud {
       this.last.b = b;
     }
     if (lightOn !== this.last.light) {
-      this.lightState.textContent = lightOn ? 'ON' : 'OFF';
+      this.lightState.textContent = lightOn ? '明' : '熄';
       this.lightState.classList.toggle('off', !lightOn);
       this.last.light = lightOn;
     }
@@ -132,7 +132,7 @@ export class Hud {
     this.haulTarget = haul;
     if (instant) {
       this.haulShown = haul;
-      this.haul.textContent = haul.toLocaleString('en-US');
+      this.haul.textContent = haul.toLocaleString('zh-CN');
     }
   }
 
@@ -265,7 +265,7 @@ export class Hud {
       const diff = this.haulTarget - this.haulShown;
       this.haulShown += Math.sign(diff) * Math.max(1, Math.ceil(Math.abs(diff) * Math.min(1, dt * 8)));
       if (Math.abs(this.haulTarget - this.haulShown) < 1) this.haulShown = this.haulTarget;
-      this.haul.textContent = this.haulShown.toLocaleString('en-US');
+      this.haul.textContent = this.haulShown.toLocaleString('zh-CN');
     }
   }
 
