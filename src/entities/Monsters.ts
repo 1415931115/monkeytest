@@ -4,6 +4,7 @@ import { limb } from '../assets/WorldKit';
 import { CORRIDOR_HALF_WIDTH, clampToCorridor, lateralOffset, pathSlope, zoneAt, type ColliderGrid } from '../game/LevelPath';
 import { pathPoint } from '../game/Level';
 import type { AudioSystem } from '../systems/AudioSystem';
+import { FaceRig, fairyKit, mergedMesh, petalGeometry, skirtGeometry, trs } from './FairyKit';
 
 export interface MonsterContext {
   playerPos: THREE.Vector3;
@@ -70,7 +71,7 @@ function makeAccents() {
     slit: std({ color: 0x080002, roughness: 0.3 }),
     peachMark: std({ color: 0xff6f9a, emissive: 0xd8204a, emissiveIntensity: 1.4 }),
     bloodVein: std({ color: 0x8a0f1e, emissive: 0x5a0410, emissiveIntensity: 0.8 }),
-    mist: std({ color: 0xc9a2c8, emissive: 0x6a3a6e, emissiveIntensity: 0.35, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }),
+    mist: std({ color: 0xe6a8cc, emissive: 0x6a2a5e, emissiveIntensity: 0.35, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }),
     fang: std({ color: 0xf2ead8, roughness: 0.35 }),
     // 青鸾
     plume: std({ color: 0x1f6f66, roughness: 0.7, side: THREE.DoubleSide, flatShading: true }),
@@ -155,7 +156,7 @@ export class Grabber {
   private readonly jaw = new THREE.Group();
   private readonly arms: Limb2[] = [];
   private readonly legs: Limb2[] = [];
-  private readonly eyes: THREE.Mesh[] = [];
+  private readonly eyes: THREE.Object3D[] = [];
   readonly zone: number;
 
   constructor(mats: MaterialLibrary, spawn: THREE.Vector3, readonly index: number) {
@@ -198,6 +199,24 @@ export class Grabber {
       this.hips.add(upper);
       this.legs.push({ upper, lower });
     }
+    // 藕荷仙裙: lotus-petal overskirt + long sheer gauze skirt (legs stride inside the gauze)
+    {
+      const fk = fairyKit();
+      const inner = mesh(skirtGeometry(0.24, 0.42, 0.62, 6, 0.04, 0.1), fk.lotusSilk);
+      inner.position.y = 0.06;
+      const outer = mesh(skirtGeometry(0.27, 0.66, 0.86, 7, 0.07, 0.14), fk.lotusGauze, false);
+      outer.position.y = 0.08;
+      this.hips.add(inner, outer);
+      const petal = petalGeometry(0.2, 0.42, 0.22);
+      const parts = [];
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        parts.push({ geo: petal, m: trs(Math.sin(a) * 0.27, -0.12, Math.cos(a) * 0.27, 0, a, 0).multiply(trs(0, 0, 0, 0.42, 0, 0)) });
+      }
+      const petals = mergedMesh(parts, fk.lotusPetal);
+      if (petals) this.hips.add(petals);
+      petal.dispose();
+    }
     // spine and torso
     this.spine.rotation.x = 0.75;
     this.hips.add(this.spine);
@@ -214,12 +233,30 @@ export class Grabber {
       v.position.set(0, 0.05 + i * 0.1, -0.22 - Math.sin((i / 6) * Math.PI) * 0.05);
       this.spine.add(v);
     }
-    for (let i = 0; i < 4; i++) {
+    // 仙衣: off-shoulder lotus-silk bodice over chest and belly, gold-thread girdle + hanging sash
+    {
+      const fk = fairyKit();
+      const bodice = mesh(new THREE.SphereGeometry(0.31, 16, 12, 0, Math.PI * 2, Math.PI * 0.3, Math.PI * 0.7), fk.lotusSilk);
+      bodice.scale.set(1.15, 1.45, 0.88);
+      bodice.position.y = 0.42;
+      const tummy = mesh(new THREE.SphereGeometry(0.228, 12, 8), fk.lotusSilk);
+      tummy.scale.set(1, 1, 0.82);
+      tummy.position.set(0, 0.12, 0.04);
+      const girdle = mesh(new THREE.TorusGeometry(0.25, 0.028, 5, 24), fk.jinGold, false);
+      girdle.rotation.x = Math.PI / 2;
+      girdle.scale.set(1, 0.85, 1);
+      girdle.position.set(0, 0.2, 0.02);
+      const neckline = mesh(new THREE.TorusGeometry(0.3, 0.018, 4, 24), fk.jinGold, false);
+      neckline.rotation.x = Math.PI / 2;
+      neckline.scale.set(1.12, 0.84, 1);
+      neckline.position.set(0, 0.6, 0);
+      this.spine.add(bodice, tummy, girdle, neckline);
       for (const side of [-1, 1]) {
-        const rib = mesh(new THREE.TorusGeometry(0.2, 0.014, 4, 10, Math.PI * 0.6), m.grabberDark, false);
-        rib.position.set(side * 0.12, 0.3 + i * 0.09, 0.05);
-        rib.rotation.set(Math.PI / 2, 0, side > 0 ? -0.6 : Math.PI - 1.3);
-        this.spine.add(rib);
+        const tail = mesh(new THREE.PlaneGeometry(0.07, 0.55, 1, 4), fk.lotusGauze, false);
+        tail.geometry.translate(0, -0.27, 0);
+        tail.position.set(side * 0.06, 0.2, 0.24);
+        tail.rotation.set(-0.5, 0, side * 0.08);
+        this.spine.add(tail);
       }
     }
     // arms
@@ -301,16 +338,42 @@ export class Grabber {
     this.spine.add(this.head);
     const neck = mesh(limb(new THREE.Vector3(0, -0.2, -0.05), new THREE.Vector3(0, 0.05, 0.02), 0.08, 0.07, 8), skin);
     this.head.add(neck);
-    const skull = mesh(new THREE.SphereGeometry(0.2, 14, 10), skin);
+    // 妖面: ghost-pale fairy face — ink sockets, oni brows, split smile, red slit eyes, fangs, horns
+    const fkH = fairyKit();
+    const skull = mesh(new THREE.SphereGeometry(0.2, 18, 14), fkH.skin.zimo);
     skull.scale.set(1, 1.1, 1.1);
     skull.position.set(0, 0.1, 0);
-    const brow = mesh(new THREE.BoxGeometry(0.3, 0.06, 0.1), skin);
-    brow.position.set(0, 0.16, 0.17);
-    brow.rotation.x = 0.3;
-    const muzzle = mesh(new THREE.SphereGeometry(0.13, 12, 8), skin);
-    muzzle.scale.set(1.1, 0.8, 1.1);
-    muzzle.position.set(0, 0.02, 0.18);
-    this.head.add(skull, brow, muzzle);
+    this.head.add(skull);
+    const face = new FaceRig(this.head, 'zimo', 0.2, new THREE.Vector3(0, 0.1, 0), new THREE.Vector3(1, 1.1, 1.1))
+      .skin(false)
+      .addEyes(0.032, 0.4)
+      .addFangs(0.075, 0.16, 2)
+      .addHorns(0.12, 0.3, 0.1, 0.45);
+    this.eyes.push(...face.eyes);
+    // fairy hair: middle-parted cap, twin buns (双髻) with gold pins and lotus ribbons, long fall down the back
+    {
+      const cap = mesh(new THREE.SphereGeometry(0.215, 16, 12, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, Math.PI * 0.64), fkH.hair);
+      cap.scale.set(1, 1.1, 1.1);
+      cap.position.set(0, 0.1, 0);
+      this.head.add(cap);
+      for (const side of [-1, 1]) {
+        const bun = mesh(new THREE.SphereGeometry(0.085, 12, 8), fkH.hair);
+        bun.position.set(side * 0.13, 0.31, -0.05);
+        const pin = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.26, 5), fkH.jinGold, false);
+        pin.position.copy(bun.position);
+        pin.rotation.set(0.3, 0, side * 1.1);
+        const ribbon = mesh(new THREE.PlaneGeometry(0.05, 0.42, 1, 3), fkH.lotusGauze, false);
+        ribbon.geometry.translate(0, -0.21, 0);
+        ribbon.position.set(side * 0.19, 0.3, -0.08);
+        ribbon.rotation.set(0.25, side * 0.3, side * 0.2);
+        this.head.add(bun, pin, ribbon);
+      }
+      const fall = mesh(new THREE.PlaneGeometry(0.3, 0.7, 1, 4), fkH.hair, false);
+      (fall.geometry as THREE.BufferGeometry).translate(0, -0.35, 0);
+      fall.position.set(0, 0.2, -0.2);
+      fall.rotation.x = 0.25;
+      this.head.add(fall);
+    }
     // 额心桃花钿（五瓣 + 花心）+ 向下渗血纹
     const fxH = accents();
     const dian = new THREE.Group();
@@ -347,23 +410,12 @@ export class Grabber {
         this.head.add(crack);
       }
     }
-    // 上颌獠牙（加强版尖牙）
+    // pointed ghost-fairy ears
     for (const side of [-1, 1]) {
-      const fang = mesh(new THREE.ConeGeometry(0.016, 0.1, 5), fxH.fang, false);
-      fang.rotation.x = Math.PI - 0.15;
-      fang.position.set(side * 0.05, -0.07, 0.27);
-      this.head.add(fang);
-    }
-    for (const side of [-1, 1]) {
-      const ear = mesh(new THREE.SphereGeometry(0.07, 8, 6), skin, false);
-      ear.scale.set(0.4, 1, 0.8);
-      ear.position.set(side * 0.21, 0.12, -0.02);
-      const socket = mesh(new THREE.SphereGeometry(0.05, 8, 6), m.grabberDark, false);
-      socket.position.set(side * 0.075, 0.1, 0.19);
-      const eye = mesh(new THREE.SphereGeometry(0.03, 8, 6), m.grabberEye, false);
-      eye.position.set(side * 0.075, 0.1, 0.225);
-      this.eyes.push(eye);
-      this.head.add(ear, socket, eye);
+      const ear = mesh(new THREE.ConeGeometry(0.035, 0.16, 5), fkH.skin.zimo, false);
+      ear.position.set(side * 0.21, 0.13, -0.01);
+      ear.rotation.set(-0.3, 0, -side * 1.15);
+      this.head.add(ear);
     }
     // jaw with teeth
     this.jaw.position.set(0, -0.02, 0.12);
@@ -437,7 +489,8 @@ export class Grabber {
         if (this.sated <= 0 && (ctx.hunt || dist < hearing)) {
           this.state = ctx.hunt || dist < hearing * 0.6 ? 'chase' : 'alert';
           this.stateTimer = 1.2;
-          ctx.audio.chaserScream(this.position);
+          // 紫陌 spots you: a sticky female 「别怕～」, not a beast scream
+          ctx.audio.zimoVoice(this.position, 'discover');
         }
         break;
       }
@@ -472,7 +525,9 @@ export class Grabber {
         this.growlTimer -= dt;
         if (this.growlTimer <= 0 && dist < 30) {
           this.growlTimer = 2.5 + ctx.rng() * 2.5;
-          ctx.audio.chaserGrowl(this.position);
+          // giggles while she runs you down; the old growl stays underneath as breath/body
+          ctx.audio.zimoVoice(this.position, 'taunt');
+          if (dist < 12) ctx.audio.chaserGrowl(this.position);
         }
         if (dist < 1.25 && !ctx.sanctuary) {
           caught = true;
@@ -595,6 +650,7 @@ export class Caller {
   private readonly head = new THREE.Group();
   private readonly arms: THREE.Group[] = [];
   private readonly mouth = new THREE.Group();
+  private readonly eyes: THREE.Object3D[] = [];
   private visibleAmt = 0;
 
   constructor(mats: MaterialLibrary, readonly zone: number) {
@@ -635,8 +691,9 @@ export class Caller {
     const fq = accents();
     this.head.position.set(0, 2.55, 0);
     this.root.add(this.head);
-    const neckLow = mesh(limb(new THREE.Vector3(0, -0.4, -0.04), new THREE.Vector3(0, -0.02, 0.07), 0.07, 0.05, 8), m.grabberSkin);
-    const neck = mesh(limb(new THREE.Vector3(0, -0.02, 0.07), new THREE.Vector3(0, 0.38, 0.02), 0.05, 0.045, 8), m.grabberSkin);
+    const fkQ = fairyKit();
+    const neckLow = mesh(limb(new THREE.Vector3(0, -0.4, -0.04), new THREE.Vector3(0, -0.02, 0.07), 0.07, 0.05, 8), fkQ.skin.qing);
+    const neck = mesh(limb(new THREE.Vector3(0, -0.02, 0.07), new THREE.Vector3(0, 0.38, 0.02), 0.05, 0.045, 8), fkQ.skin.qing);
     this.head.add(neckLow, neck);
     // 颈羽领：颈根一圈细羽
     for (let i = 0; i < 10; i++) {
@@ -651,36 +708,44 @@ export class Caller {
       pivot.add(f);
       this.head.add(pivot);
     }
-    // mask: pale elongated monkey face
-    const mask = mesh(new THREE.SphereGeometry(0.22, 18, 14), m.mask);
+    // 妖面: ghost-white bird-fairy face — red slit bird eyes, oni brows, crooked cruel smile, small fangs
+    const mask = mesh(new THREE.SphereGeometry(0.22, 20, 16), fkQ.skin.qing);
     mask.scale.set(0.95, 1.25, 0.75);
     mask.position.set(0, 0.55, 0.04);
     this.head.add(mask);
-    const hood = mesh(new THREE.SphereGeometry(0.27, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), robeMat);
-    hood.scale.set(1, 1.3, 1);
-    hood.position.set(0, 0.6, -0.04);
-    hood.rotation.x = -0.35;
+    const face = new FaceRig(this.head, 'qing', 0.22, new THREE.Vector3(0, 0.55, 0.04), new THREE.Vector3(0.95, 1.25, 0.75))
+      .skin(false)
+      .addEyes(0.04, 0.45)
+      .addFangs(0.05, 0.12, 2);
+    this.eyes.push(...face.eyes);
+    // fairy coiffure: black hair framing the face, high bun with a teal feather crest, gold pin + jade 步摇
+    const hood = mesh(new THREE.SphereGeometry(0.255, 16, 12, Math.PI / 2 + 0.75, Math.PI * 2 - 1.5, 0, Math.PI * 0.66), fkQ.hair);
+    hood.scale.set(0.98, 1.3, 0.9);
+    hood.position.set(0, 0.57, 0.02);
     this.head.add(hood);
-    for (const side of [-1, 1]) {
-      const eye = mesh(new THREE.SphereGeometry(0.045, 10, 8), m.maskHole, false);
-      eye.scale.set(1, 1.5, 0.5);
-      eye.position.set(side * 0.08, 0.62, 0.2);
-      this.head.add(eye);
-      // 冰蓝鸟瞳 + 竖瞳缝
-      const iris = mesh(new THREE.SphereGeometry(0.028, 10, 8), fq.iceIris, false);
-      iris.scale.set(1, 1.35, 0.4);
-      iris.position.set(side * 0.08, 0.62, 0.218);
-      const pupil = mesh(new THREE.BoxGeometry(0.007, 0.05, 0.005), fq.talon, false);
-      pupil.position.set(side * 0.08, 0.62, 0.23);
-      this.head.add(iris, pupil);
-      const brow = mesh(new THREE.TorusGeometry(0.06, 0.012, 4, 10, Math.PI), m.maskHole, false);
-      brow.position.set(side * 0.08, 0.68, 0.19);
-      this.head.add(brow);
+    const bun = mesh(new THREE.SphereGeometry(0.12, 12, 10), fkQ.hair);
+    bun.scale.set(1, 0.8, 1);
+    bun.position.set(0, 0.92, -0.08);
+    this.head.add(bun);
+    const crestGeo = petalGeometry(0.07, 0.5, 0.2);
+    const crestParts = [];
+    for (let i = 0; i < 5; i++) {
+      const f = i / 4 - 0.5;
+      crestParts.push({ geo: crestGeo, m: trs(f * 0.12, 1.12, -0.18 - Math.abs(f) * 0.05, -0.55, 0, -f * 1.1) });
     }
-    const smile = mesh(new THREE.TorusGeometry(0.1, 0.014, 4, 16, Math.PI * 0.9), m.maskHole, false);
-    smile.position.set(0, 0.47, 0.19);
-    smile.rotation.z = Math.PI + 0.15;
-    this.head.add(smile);
+    const crest = mergedMesh(crestParts, fq.plume);
+    if (crest) this.head.add(crest);
+    crestGeo.dispose();
+    for (const side of [-1, 1]) {
+      const pin = mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.34, 5), fq.goldThread, false);
+      pin.position.set(0, 0.93, -0.08);
+      pin.rotation.z = side * 1.2;
+      const drop = mesh(new THREE.OctahedronGeometry(0.022), fkQ.jade, false);
+      drop.position.set(side * 0.17, 0.82, -0.06);
+      const chain = mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.12, 3), fq.goldThread, false);
+      chain.position.set(side * 0.17, 0.89, -0.06);
+      this.head.add(pin, drop, chain);
+    }
     // 弯喙：上喙前伸 + 下勾尖
     const beak = mesh(new THREE.ConeGeometry(0.045, 0.17, 6), fq.beak);
     beak.scale.set(1, 1, 0.75);
@@ -732,14 +797,40 @@ export class Caller {
     const hemMist = mesh(new THREE.CylinderGeometry(0.5, 0.75, 0.6, 20, 1, true), fq.featherMist, false);
     hemMist.position.y = 0.22;
     this.root.add(hemMist);
+    // 仙衣: sheer teal gauze overskirt, dark sash with gold girdle, floating 披帛 ribbon loop
+    const overskirt = mesh(skirtGeometry(0.37, 0.72, 1.45, 8, 0.08, 0.06), fkQ.tealGauze, false);
+    overskirt.position.y = 1.45;
+    this.root.add(overskirt);
+    const sash = mesh(new THREE.CylinderGeometry(0.37, 0.39, 0.16, 20, 1, true), fkQ.tealSash);
+    sash.position.y = 1.4;
+    const girdle = mesh(new THREE.TorusGeometry(0.385, 0.018, 4, 24), fq.goldThread, false);
+    girdle.rotation.x = Math.PI / 2;
+    girdle.position.y = 1.47;
+    this.root.add(sash, girdle);
+    for (const side of [-1, 1]) {
+      const tie = mesh(new THREE.PlaneGeometry(0.08, 0.8, 1, 4), fkQ.tealGauze, false);
+      tie.geometry.translate(0, -0.4, 0);
+      tie.position.set(side * 0.08, 1.4, 0.38);
+      tie.rotation.set(-0.12, 0, side * 0.06);
+      this.root.add(tie);
+    }
+    const pibo = mesh(new THREE.TorusGeometry(0.62, 0.05, 5, 30, Math.PI * 1.25), fkQ.tealGauze, false);
+    pibo.scale.set(1, 1, 2.6);
+    pibo.position.set(0, 1.55, -0.05);
+    pibo.rotation.set(Math.PI / 2 - 0.35, 0, -Math.PI * 0.12);
+    this.root.add(pibo);
     // long arms hanging past the knees
     for (const side of [-1, 1]) {
       const arm = new THREE.Group();
       arm.position.set(side * 0.3, 2.0, 0);
       arm.add(mesh(limb(new THREE.Vector3(0, 0, 0), new THREE.Vector3(side * 0.08, -1.0, 0.05), 0.07, 0.04, 6), robeMat));
-      arm.add(mesh(limb(new THREE.Vector3(side * 0.08, -1.0, 0.05), new THREE.Vector3(side * 0.1, -1.55, 0.12), 0.035, 0.028, 6), m.grabberSkin));
+      arm.add(mesh(limb(new THREE.Vector3(side * 0.08, -1.0, 0.05), new THREE.Vector3(side * 0.1, -1.55, 0.12), 0.035, 0.028, 6), fkQ.skin.qing));
+      // narrow hunting sleeve ends in a gauze flare
+      const cuff = mesh(new THREE.CylinderGeometry(0.06, 0.13, 0.32, 10, 1, true), fkQ.tealGauze, false);
+      cuff.position.set(side * 0.08, -0.95, 0.05);
+      arm.add(cuff);
       for (let f = 0; f < 4; f++) {
-        arm.add(mesh(limb(new THREE.Vector3(side * 0.1, -1.55, 0.12), new THREE.Vector3(side * (0.06 + f * 0.03), -1.9, 0.14 + f * 0.01), 0.012, 0.006, 4), m.grabberSkin, false));
+        arm.add(mesh(limb(new THREE.Vector3(side * 0.1, -1.55, 0.12), new THREE.Vector3(side * (0.06 + f * 0.03), -1.9, 0.14 + f * 0.01), 0.012, 0.006, 4), fkQ.skin.qing, false));
         // 黑长利爪
         const talon = mesh(new THREE.ConeGeometry(0.011, 0.2, 4), fq.talon, false);
         talon.rotation.x = Math.PI - 0.45;

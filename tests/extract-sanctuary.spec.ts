@@ -123,7 +123,7 @@ test.describe('extract sanctuary v1', () => {
         { timeout: 40_000, intervals: [100] },
       )
       .toBe(true);
-    await expect(page.locator('#banner-title')).toHaveText('金阙戏弄');
+    await expect(page.locator('#banner-title')).toHaveText(/金阙戏弄|JinQue's Trick/);
 
     const after = await mb(page);
     expect(after.state).toBe('playing');

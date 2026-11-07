@@ -1,55 +1,55 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#07090d" />
     <link rel="icon" href="data:," />
-    <title>偷桃前夜 · 猴哥 MONKEYBRO</title>
+    <title>Peach Heist Eve · 猴哥 MONKEYBRO</title>
   </head>
   <body>
     <main id="app">
-      <canvas id="game-canvas" aria-label="夜色蟠桃园第一人称视角"></canvas>
+      <canvas id="game-canvas" aria-label="First-person view of the moonlit immortal peach orchard" data-i18n-aria="meta.canvas"></canvas>
 
       <section id="hud" class="hidden" aria-live="polite">
-        <div id="compass" aria-label="Compass">
+        <div id="compass" aria-label="Compass" data-i18n-aria="aria.compass">
           <div id="compass-track"></div>
           <div id="compass-markers"></div>
           <div class="compass-needle"></div>
         </div>
 
         <div id="zone-panel">
-          <div id="zone-glyph">外园</div>
+          <div id="zone-glyph">I</div>
           <div class="zone-text">
-            <div id="zone-name">外园 · 月下桃径</div>
-            <div id="objective">摘桃 · 寻冷蓝石阙归去</div>
+            <div id="zone-name">Outer Orchard · Moonlit Peach Path</div>
+            <div id="objective" data-i18n="objective">Pick peaches · Find the cold-blue gate home</div>
           </div>
         </div>
 
         <div id="vitals">
-          <div class="meter meter-health" title="命火">
-            <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s-7.5-4.6-9.4-9.3C1.2 8.2 3.4 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.6 0 5.8 3.7 4.4 7.2C19.5 16.4 12 21 12 21z"/></svg><span class="meter-label">命</span>
+          <div class="meter meter-health" title="Life-fire" data-i18n-title="meter.health">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s-7.5-4.6-9.4-9.3C1.2 8.2 3.4 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.6 0 5.8 3.7 4.4 7.2C19.5 16.4 12 21 12 21z"/></svg><span class="meter-label" data-i18n="meter.healthShort">HP</span>
             <div class="bar"><i id="health-fill"></i><span class="half-mark"></span></div>
           </div>
-          <div class="meter meter-stamina" title="脚力">
-            <svg viewBox="0 0 24 24" class="ico"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span class="meter-label">力</span>
+          <div class="meter meter-stamina" title="Stamina" data-i18n-title="meter.stamina">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span class="meter-label" data-i18n="meter.staminaShort">STA</span>
             <div class="bar thin"><i id="stamina-fill"></i></div>
           </div>
-          <div class="meter meter-battery" title="灯油">
-            <svg viewBox="0 0 24 24" class="ico"><path d="M6 3h8l-1 5 5 0-1 3H8z M9 12h6v9H9z"/></svg><span class="meter-label">灯</span>
+          <div class="meter meter-battery" title="Lantern oil" data-i18n-title="meter.battery">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M6 3h8l-1 5 5 0-1 3H8z M9 12h6v9H9z"/></svg><span class="meter-label" data-i18n="meter.batteryShort">OIL</span>
             <div class="bar thin"><i id="battery-fill"></i></div>
-            <span id="light-state">明</span>
+            <span id="light-state">LIT</span>
           </div>
         </div>
 
-        <div id="satchel" aria-label="Satchel">
+        <div id="satchel" aria-label="Satchel" data-i18n-aria="aria.satchel">
           <div class="slots">
-            <div class="slot" data-tier="0"><span class="peach t0"></span><b id="count-0">0</b><small>十年</small></div>
-            <div class="slot" data-tier="1"><span class="peach t1"></span><b id="count-1">0</b><small>百年</small></div>
-            <div class="slot" data-tier="2"><span class="peach t2"></span><b id="count-2">0</b><small>千年</small></div>
-            <div class="slot" data-tier="3"><span class="peach t3"></span><b id="count-3">0</b><small>万年</small></div>
+            <div class="slot" data-tier="0"><span class="peach t0"></span><b id="count-0">0</b><small data-i18n="tier.short.0">10 yr</small></div>
+            <div class="slot" data-tier="1"><span class="peach t1"></span><b id="count-1">0</b><small data-i18n="tier.short.1">100 yr</small></div>
+            <div class="slot" data-tier="2"><span class="peach t2"></span><b id="count-2">0</b><small data-i18n="tier.short.2">1k yr</small></div>
+            <div class="slot" data-tier="3"><span class="peach t3"></span><b id="count-3">0</b><small data-i18n="tier.short.3">10k yr</small></div>
           </div>
-          <div id="haul"><small>桃值</small><strong id="haul-value">0</strong></div>
+          <div id="haul"><small data-i18n="satchel.haul">Haul</small><strong id="haul-value">0</strong></div>
         </div>
 
         <div id="reticle">
@@ -59,14 +59,14 @@
           </svg>
           <div class="dot"></div>
         </div>
-        <div id="prompt" class="hidden"><kbd id="prompt-key">E</kbd><span id="prompt-text">长按摘桃</span><em id="prompt-value"></em></div>
+        <div id="prompt" class="hidden"><kbd id="prompt-key">E</kbd><span id="prompt-text">Hold to pick</span><em id="prompt-value"></em></div>
 
         <div id="banner" class="hidden"><div id="banner-title"></div><div id="banner-sub"></div></div>
         <div id="subtitle" class="hidden"></div>
-        <div id="hunt-meter" class="hidden"><span>金阙合围 · 满园追猎</span><div class="bar"><i id="hunt-fill"></i></div></div>
+        <div id="hunt-meter" class="hidden"><span data-i18n="hunt.meter">JinQue's Siege · The whole orchard hunts</span><div class="bar"><i id="hunt-fill"></i></div></div>
         <div id="hint" class="hidden"></div>
-        <div id="lock-hint" class="hidden" role="status">点击画面以锁定视角</div>
-        <div id="extract" class="hidden"><div class="bar"><i id="extract-fill"></i></div><span>归去中…</span></div>
+        <div id="lock-hint" class="hidden" role="status" data-i18n="lock.hint">Click the screen to lock the view</div>
+        <div id="extract" class="hidden"><div class="bar"><i id="extract-fill"></i></div><span data-i18n="extract.label">Escaping…</span></div>
         <div id="toast-layer"></div>
       </section>
 
@@ -75,51 +75,55 @@
       <section id="screen-title" class="screen">
         <div class="panel title-panel">
           <div class="title-mark seal">猴哥</div>
-          <h1>偷桃前夜</h1>
-          <p class="tagline">MONKEYBRO · 蟠桃园夜行</p>
+          <h1 data-i18n="title.h1">Peach Heist Eve</h1>
+          <p class="tagline" data-i18n="title.tagline">MONKEYBRO · A night raid on the immortal peach orchard</p>
           <ul class="rules">
-            <li><span class="rule-ico peach t2"></span><div><b>偷蟠桃。</b>桃龄越老光越亮、越值钱——十年、百年、千年、万年。</div></li>
-            <li><span class="rule-ico shrine"></span><div><b>寻冷蓝石阙归去。</b>每夜随机亮起两座，逃出去收获才算数。</div></li>
-            <li><span class="rule-ico eye red"></span><div><b>紫陌</b>循光循声而来，一握夺你半条命火；灯光能逼退她。</div></li>
-            <li><span class="rule-ico eye white"></span><div><b>青鸾：</b>摘桃时若身后有人唤「猴哥——」，千万别回头。</div></li>
-            <li><span class="rule-ico eye gold"></span><div><b>金阙：</b>摘下千年、万年桃，她会唤醒满园妖仙合围。</div></li>
+            <li><span class="rule-ico peach t2"></span><div data-i18n-html="title.rule.peach"><b>Steal immortal peaches.</b> The older the peach, the brighter it glows and the more it is worth — decade, century, millennium, myriad-year.</div></li>
+            <li><span class="rule-ico shrine"></span><div data-i18n-html="title.rule.shrine"><b>Find the cold-blue stone gate home.</b> Two of them light up each night. Your haul only counts if you escape.</div></li>
+            <li><span class="rule-ico eye red"></span><div data-i18n-html="title.rule.zimo"><b>ZiMo</b> follows light and sound. One grasp tears away half your life-fire — your lantern beam drives her back.</div></li>
+            <li><span class="rule-ico eye white"></span><div data-i18n-html="title.rule.qingluan"><b>QingLuan:</b> if someone calls 「猴哥——」 (“Monkey Bro—”) behind you while you pick, do NOT look back.</div></li>
+            <li><span class="rule-ico eye gold"></span><div data-i18n-html="title.rule.jinque"><b>JinQue:</b> pick a millennium or myriad-year peach and she wakes every fairy-demon in the orchard to hunt you.</div></li>
           </ul>
-          <button id="start-button" class="btn primary" type="button">入园偷桃</button>
-          <div class="controls-line"><kbd>WASD</kbd> 行走 <kbd>鼠标</kbd> 转身 <kbd>Shift</kbd> 疾奔 <kbd>F</kbd> 灯笼 <kbd>E</kbd>/<kbd>左键</kbd> 长按摘桃 <kbd>Esc</kbd> 暂停</div>
+          <button id="start-button" class="btn primary" type="button" data-i18n="title.start">Enter the Orchard</button>
+          <div class="controls-line" data-i18n-html="title.controls"><kbd>WASD</kbd> move <kbd>Mouse</kbd> look <kbd>Shift</kbd> sprint <kbd>F</kbd> lantern <kbd>E</kbd>/<kbd>LMB</kbd> hold to pick <kbd>Esc</kbd> pause</div>
           <div id="best-line" class="best-line"></div>
+          <button id="title-lang-button" class="btn lang-btn" type="button" data-i18n="lang.button">Language · English</button>
         </div>
       </section>
 
       <section id="screen-pause" class="screen hidden">
         <div class="panel small">
-          <h2>暂歇</h2>
-          <p class="muted">园子在等。它很有耐心。</p>
-          <button id="resume-button" class="btn primary" type="button">继续</button>
+          <h2 data-i18n="pause.title">Paused</h2>
+          <p class="muted" data-i18n="pause.flavor">The orchard waits. It is very patient.</p>
+          <button id="resume-button" class="btn primary" type="button" data-i18n="pause.resume">Resume</button>
           <div class="row">
-            <button id="mute-button" class="btn" type="button">声 · 开</button>
-            <button id="restart-button" class="btn" type="button">重来一夜</button>
+            <button id="mute-button" class="btn" type="button">Sound · On</button>
+            <button id="restart-button" class="btn" type="button" data-i18n="pause.restart">New Night</button>
+          </div>
+          <div class="row">
+            <button id="lang-button" class="btn lang-btn" type="button" data-i18n="lang.button">Language · English</button>
           </div>
         </div>
       </section>
 
       <section id="screen-dead" class="screen hidden">
         <div class="panel small dead">
-          <div class="title-mark small" id="dead-glyph">死</div>
-          <h2 id="dead-title">你应了那一声</h2>
+          <div class="title-mark small" id="dead-glyph">✕</div>
+          <h2 id="dead-title">You answered the call</h2>
           <p id="dead-reason" class="muted"></p>
           <p id="dead-lost" class="lost"></p>
-          <button id="retry-button" class="btn primary" type="button">再入一夜</button>
+          <button id="retry-button" class="btn primary" type="button" data-i18n="dead.retry">Enter Again</button>
         </div>
       </section>
 
       <section id="screen-extracted" class="screen hidden">
         <div class="panel small won">
-          <div class="title-mark small">归</div>
-          <h2>逃出蟠桃园</h2>
+          <div class="title-mark small" data-i18n="won.glyph">HOME</div>
+          <h2 data-i18n="won.title">Escaped the Peach Orchard</h2>
           <div id="result-rows" class="result-rows"></div>
-          <div class="result-total"><small>入袋桃值</small><strong id="result-total">0</strong></div>
+          <div class="result-total"><small data-i18n="won.total">Haul banked</small><strong id="result-total">0</strong></div>
           <p id="result-best" class="muted"></p>
-          <button id="again-button" class="btn primary" type="button">再闯一回</button>
+          <button id="again-button" class="btn primary" type="button" data-i18n="won.again">Raid Again</button>
         </div>
       </section>
 
@@ -127,17 +131,17 @@
         <div id="touch-look"></div>
         <div id="touch-stick"><div id="touch-knob"></div></div>
         <div id="touch-buttons">
-          <button id="touch-light" type="button" aria-label="灯笼">
+          <button id="touch-light" type="button" aria-label="Lantern" data-i18n-aria="touch.light">
             <svg viewBox="0 0 24 24"><path d="M6 3h8l-1 5 5 0-1 3H8z M9 12h6v9H9z"/></svg>
           </button>
-          <button id="touch-sprint" type="button" aria-label="疾奔">
+          <button id="touch-sprint" type="button" aria-label="Sprint" data-i18n-aria="touch.sprint">
             <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
           </button>
-          <button id="touch-harvest" type="button" aria-label="摘桃">
+          <button id="touch-harvest" type="button" aria-label="Pick" data-i18n-aria="touch.harvest">
             <span class="peach t1"></span>
           </button>
         </div>
-        <button id="touch-pause" type="button" aria-label="暂停">II</button>
+        <button id="touch-pause" type="button" aria-label="Pause" data-i18n-aria="touch.pause">II</button>
       </div>
     </main>
     <script type="module" src="/src/main.ts"></script>
