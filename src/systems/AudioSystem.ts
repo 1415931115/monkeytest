@@ -160,6 +160,133 @@ const CALLER_REAR_SHADOW_DB = -7;
 /** SpeechSynthesis cannot be routed through the HRTF panner, so it stays a barely-there, late double. */
 const CALLER_TTS_VOLUME = 0.06;
 
+/** Everything the formant synth needs to sing one female utterance. */
+interface VoiceSpec {
+  keys: FormantKey[];
+  pitch: Array<[number, number]>;
+  vibrato: Array<[number, number]>;
+  vibHz: number;
+  f4: number;
+  /** Pitch jitter per 25 ms step (fraction of f0). */
+  jitter: number;
+  /** Consonant noise bursts: [t, bandpass Hz, level, decay s]. */
+  bursts: Array<[number, number, number, number]>;
+}
+
+const CALLER_SPEC: VoiceSpec = {
+  keys: CALLER_KEYS,
+  pitch: CALLER_PITCH,
+  vibrato: CALLER_VIBRATO,
+  vibHz: 5.6,
+  f4: CALLER_F4,
+  jitter: 0.012,
+  bursts: [[0.64, 2300, 0.1, 0.02]],
+};
+
+// ---- 紫陌 ZiMo: sweet-but-cruel young female voice (formants of a short adult female tract).
+// Discover: 「别怕～」(bié pà) — [bj] -> [ɛ] tone 2 rising | [pʰ] -> [a] tone 4 falling, then a sticky sigh.
+const ZIMO_COAX_KEYS: FormantKey[] = [
+  [0.0, 320, 2650, 3300, 0.0, 0.0],
+  [0.03, 320, 2650, 3300, 0.6, 0.15], // b release into palatal glide
+  [0.09, 360, 2550, 3250, 1.0, 0.15], // j
+  [0.17, 640, 2250, 3050, 1.0, 0.2], // ɛ
+  [0.34, 620, 2200, 3000, 0.9, 0.25],
+  [0.39, 600, 1900, 2950, 0.0, 0.05], // p closure
+  [0.44, 950, 1500, 2900, 0.0, 0.9], // pʰ aspiration
+  [0.5, 980, 1480, 2900, 1.0, 0.3], // a
+  [0.82, 900, 1400, 2850, 0.85, 0.35],
+  [1.02, 760, 1300, 2850, 0.25, 0.8], // breathy sigh-out
+  [1.18, 760, 1300, 2850, 0.0, 0.0],
+];
+const ZIMO_COAX_PITCH: Array<[number, number]> = [
+  [0.0, 300],
+  [0.12, 296],
+  [0.34, 372], // tone 2 rising
+  [0.44, 410],
+  [0.52, 420], // tone 4 starts high...
+  [0.9, 290], // ...and falls, honey-slow
+  [1.18, 262],
+];
+// Giggle 「嘻嘻嘻」: three high [i] pulses with breath between, each a little lower and crueller.
+function giggleKeys(pulses: number, gap: number): FormantKey[] {
+  const k: FormantKey[] = [[0, 330, 2800, 3400, 0, 0]];
+  for (let i = 0; i < pulses; i++) {
+    const t = 0.02 + i * gap;
+    k.push([t, 330, 2800, 3400, 0.0, 0.7]); // h onset
+    k.push([t + 0.03, 320, 2750, 3350, 1.0, 0.35]); // i
+    k.push([t + gap * 0.55, 340, 2650, 3300, 0.75, 0.4]);
+    k.push([t + gap * 0.8, 360, 2500, 3200, 0.0, 0.25]);
+  }
+  const end = 0.02 + pulses * gap;
+  k.push([end + 0.12, 380, 2400, 3150, 0.0, 0.0]);
+  return k;
+}
+const ZIMO_GIGGLE_KEYS = giggleKeys(3, 0.15);
+const ZIMO_GIGGLE_PITCH: Array<[number, number]> = [
+  [0.0, 470],
+  [0.1, 520],
+  [0.2, 455],
+  [0.27, 500],
+  [0.36, 430],
+  [0.43, 470],
+  [0.6, 380],
+];
+// Attack: a short, delighted female shriek-laugh 「啊哈！」 at the moment of the grab.
+const ZIMO_SHRIEK_KEYS: FormantKey[] = [
+  [0.0, 900, 1600, 3000, 0.0, 0.6],
+  [0.02, 980, 1650, 3050, 1.0, 0.35], // a!
+  [0.2, 940, 1600, 3000, 1.0, 0.4],
+  [0.25, 900, 1550, 3000, 0.0, 0.9], // h
+  [0.3, 960, 1580, 3000, 1.0, 0.35], // a
+  [0.5, 820, 1450, 2900, 0.5, 0.6],
+  [0.64, 800, 1400, 2900, 0.0, 0.0],
+];
+const ZIMO_SHRIEK_PITCH: Array<[number, number]> = [
+  [0.0, 560],
+  [0.06, 720],
+  [0.2, 640],
+  [0.3, 600],
+  [0.36, 660],
+  [0.64, 420],
+];
+const ZIMO_VIBRATO: Array<[number, number]> = [
+  [0.0, 0.006],
+  [0.5, 0.014],
+  [1.2, 0.022],
+];
+const ZIMO_COAX: VoiceSpec = { keys: ZIMO_COAX_KEYS, pitch: ZIMO_COAX_PITCH, vibrato: ZIMO_VIBRATO, vibHz: 6.2, f4: 4600, jitter: 0.01, bursts: [[0.03, 1200, 0.08, 0.015], [0.42, 1500, 0.16, 0.04]] };
+const ZIMO_GIGGLE: VoiceSpec = { keys: ZIMO_GIGGLE_KEYS, pitch: ZIMO_GIGGLE_PITCH, vibrato: ZIMO_VIBRATO, vibHz: 7, f4: 4800, jitter: 0.02, bursts: [] };
+const ZIMO_SHRIEK: VoiceSpec = { keys: ZIMO_SHRIEK_KEYS, pitch: ZIMO_SHRIEK_PITCH, vibrato: [[0, 0.02], [0.64, 0.03]], vibHz: 8.5, f4: 4400, jitter: 0.025, bursts: [] };
+
+// ---- 金阙 JinQue: arrogant, cold female command 「聚。」(jù, tone 4 — a hard falling bark).
+// [tɕ] affricate burst -> [y] rounded front vowel, chest-forward, little breath.
+const JINQUE_KEYS: FormantKey[] = [
+  [0.0, 300, 2100, 2700, 0.0, 0.0],
+  [0.02, 300, 2100, 2700, 0.0, 0.0], // closure
+  [0.06, 320, 2000, 2650, 0.4, 0.5], // tɕ release (noise burst below carries it)
+  [0.1, 330, 1950, 2600, 1.0, 0.12], // y
+  [0.46, 340, 1900, 2600, 0.95, 0.15],
+  [0.62, 360, 1850, 2600, 0.35, 0.35], // clipped, cold release
+  [0.78, 360, 1850, 2600, 0.0, 0.0],
+];
+const JINQUE_PITCH: Array<[number, number]> = [
+  [0.0, 360],
+  [0.1, 372], // tone 4 starts high
+  [0.5, 228], // and falls hard
+  [0.78, 196],
+];
+const JINQUE: VoiceSpec = {
+  keys: JINQUE_KEYS,
+  pitch: JINQUE_PITCH,
+  vibrato: [[0, 0.002], [0.4, 0.006], [0.78, 0.01]],
+  vibHz: 5,
+  f4: 4200,
+  jitter: 0.006,
+  bursts: [[0.04, 4200, 0.5, 0.05], [0.055, 6200, 0.3, 0.04]],
+};
+/** ZiMo cue variants. */
+export type ZimoCue = 'discover' | 'taunt' | 'attack';
+
 export class AudioSystem {
   muted = false;
 
@@ -1191,9 +1318,10 @@ export class AudioSystem {
     });
   }
 
-  private formantVoice(shot: Shot, t0: number, pitchMul: number, voiced: number, breath: number, out: AudioNode): void {
+  private formantVoice(shot: Shot, t0: number, pitchMul: number, voiced: number, breath: number, out: AudioNode, spec: VoiceSpec = CALLER_SPEC): void {
     const ctx = this.ctx!;
-    const keys = CALLER_KEYS;
+    const keys = spec.keys;
+    const PITCH = spec.pitch;
     const tLast = keys[keys.length - 1][0];
     const tEnd = t0 + tLast + 0.05;
 
@@ -1202,7 +1330,7 @@ export class AudioSystem {
     const input = this.gain(shot, 1);
     const formants: BiquadFilterNode[] = [];
     for (let i = 0; i < FORMANT_BW.length; i++) {
-      const f0 = i < 3 ? keys[0][i + 1] : CALLER_F4;
+      const f0 = i < 3 ? keys[0][i + 1] : spec.f4;
       const lvl = this.gain(shot, FORMANT_LEVEL[i], makeup);
       const f = this.filt(shot, 'bandpass', f0, f0 / FORMANT_BW[i], lvl);
       input.connect(f);
@@ -1226,21 +1354,21 @@ export class AudioSystem {
       }
       return P[P.length - 1][1];
     };
-    fq.setValueAtTime(interp(CALLER_PITCH, 0) * pitchMul, t0);
+    fq.setValueAtTime(interp(PITCH, 0) * pitchMul, t0);
     let drift = 0;
     for (let tt = 0.025; tt <= tLast + 0.001; tt += 0.025) {
-      drift = drift * 0.7 + (Math.random() - 0.5) * 0.012; // gentle, not gruff
-      fq.linearRampToValueAtTime(interp(CALLER_PITCH, tt) * pitchMul * (1 + drift), t0 + tt);
+      drift = drift * 0.7 + (Math.random() - 0.5) * spec.jitter; // gentle, not gruff
+      fq.linearRampToValueAtTime(interp(PITCH, tt) * pitchMul * (1 + drift), t0 + tt);
     }
     shot.play(src, t0, tEnd);
     // vibrato: ~5.6 Hz, depth (Hz) automated so it blooms on the held "gē"
     const vib = this.gain(shot, 0, fq);
-    for (const [vt, depth] of CALLER_VIBRATO) {
-      const hz = depth * interp(CALLER_PITCH, vt) * pitchMul;
+    for (const [vt, depth] of spec.vibrato) {
+      const hz = depth * interp(PITCH, vt) * pitchMul;
       if (vt === 0) vib.gain.setValueAtTime(hz, t0);
       else vib.gain.linearRampToValueAtTime(hz, t0 + vt);
     }
-    this.osc(shot, 'sine', 5.6 * rand(0.95, 1.05), t0, tEnd, vib);
+    this.osc(shot, 'sine', spec.vibHz * rand(0.95, 1.05), t0, tEnd, vib);
 
     // breath / aspiration noise into formants (high-passed: airy, not hissy-low)
     const amt = Math.max(voiced, breath);
@@ -1276,11 +1404,13 @@ export class AudioSystem {
       }
     });
 
-    // /g/ release: brief, soft voiced burst
-    const gT = t0 + 0.64;
-    const gBp = this.filt(shot, 'bandpass', 2300, 1.5, out);
-    const gG = this.gain(shot, 0, gBp);
-    this.noise(shot, gT, this.env(gG.gain, gT, 0.004, 0.1 * amt, 0.02), gG);
+    // consonant releases (/g/ for the Caller, /p/ /tɕ/ for the sisters): brief filtered bursts
+    for (const [bt, bf, bl, bd] of spec.bursts) {
+      const gT = t0 + bt;
+      const gBp = this.filt(shot, 'bandpass', bf, 1.5, out);
+      const gG = this.gain(shot, 0, gBp);
+      this.noise(shot, gT, this.env(gG.gain, gT, 0.004, bl * amt, bd), gG);
+    }
   }
 
   /**
@@ -1290,8 +1420,12 @@ export class AudioSystem {
    * always lands after the procedural voice (precedence effect keeps localisation on
    * the panned voice).
    */
-  private speak(position: THREE.Vector3): void {
-    if (CALLER_TTS_VOLUME <= 0) return;
+  private speak(
+    position: THREE.Vector3,
+    text = '猴哥',
+    opts: { rate: number; pitch: number; volume: number; interrupt: boolean } = { rate: 0.62, pitch: 1.25, volume: CALLER_TTS_VOLUME, interrupt: true },
+  ): void {
+    if (opts.volume <= 0) return;
     try {
       const ss = window.speechSynthesis;
       if (!ss || typeof SpeechSynthesisUtterance === 'undefined') return;
@@ -1305,14 +1439,16 @@ export class AudioSystem {
       const fem = zh.filter((v) => female.test(v.name) && !male.test(v.name));
       if (fem.length === 0) return; // no known female zh voice: stay silent rather than a male TTS
       const pick = fem.find((v) => /^zh[-_]cn/i.test(v.lang)) ?? fem[0];
-      const u = new SpeechSynthesisUtterance('猴哥');
+      // the sisters never talk over the Caller's 「猴哥——」 (or each other)
+      if (!opts.interrupt && (ss.speaking || ss.pending)) return;
+      const u = new SpeechSynthesisUtterance(text);
       u.lang = pick.lang || 'zh-CN';
       u.voice = pick;
-      u.rate = 0.62; // drawn out
-      u.pitch = 1.25; // light, feminine
+      u.rate = opts.rate; // Caller: drawn out
+      u.pitch = opts.pitch; // light, feminine
       const d = this.listenerPos.distanceTo(position);
-      u.volume = CALLER_TTS_VOLUME * clamp(6 / Math.max(6, Number.isFinite(d) ? d : 6), 0.3, 1);
-      ss.cancel();
+      u.volume = opts.volume * clamp(6 / Math.max(6, Number.isFinite(d) ? d : 6), 0.3, 1);
+      if (opts.interrupt) ss.cancel();
       // start a beat after the panned voice so the ear locks onto that one first
       window.setTimeout(() => {
         try {
@@ -1324,6 +1460,63 @@ export class AudioSystem {
     } catch {
       /* speech synthesis unavailable */
     }
+  }
+
+  /**
+   * 紫陌 (Grabber) female vocal cue, HRTF-panned from her position:
+   * discover = sticky 「别怕～」 coax, taunt = 「嘻嘻嘻」 giggle while she runs you down,
+   * attack = delighted shriek-laugh on the grab. Same formant synth as the Caller's 「猴哥」.
+   */
+  zimoVoice(position: THREE.Vector3, cue: ZimoCue): void {
+    this.safe(undefined, () => {
+      if (!this.ok()) return;
+      if (!this.gate(cue === 'attack' ? 'zimo-attack' : 'zimo', cue === 'attack' ? 0.25 : cue === 'taunt' ? 1.6 : 0.9)) return;
+      const ctx = this.ctx!;
+      const t0 = ctx.currentTime + 0.02;
+      const spec = cue === 'discover' ? ZIMO_COAX : cue === 'attack' ? ZIMO_SHRIEK : ZIMO_GIGGLE;
+      const shot = new Shot(this.transient);
+      // head height of a hunched fairy
+      const pos = new THREE.Vector3(position.x, position.y + 1.45, position.z);
+      const pan = this.panner(shot, pos, cue === 'attack' ? 3 : 5, 1, this.voice);
+      const air = this.filt(shot, 'peaking', 5000, 0.8, pan);
+      air.gain.value = 3.5;
+      const level = cue === 'attack' ? 0.95 : cue === 'taunt' ? 0.6 : 0.85;
+      const out = this.gain(shot, level, air);
+      this.send(shot, out, cue === 'attack' ? 0.25 : 0.35);
+      const pm = rand(0.97, 1.04);
+      // sweet main voice + a whispering double a hair late and sharp (honeyed, slightly unreal)
+      this.formantVoice(shot, t0, pm, 0.9, 0.45, this.gain(shot, 0.85, out), spec);
+      this.formantVoice(shot, t0 + 0.03, pm * 1.012, 0.1, 1.0, this.gain(shot, 0.45, out), spec);
+      if (cue === 'attack') {
+        // the cruel part: a giggle tucked in right behind the shriek
+        this.formantVoice(shot, t0 + 0.52, pm * 0.98, 0.7, 0.6, this.gain(shot, 0.5, out), ZIMO_GIGGLE);
+        this.speak(position, '疼一下就好', { rate: 1.05, pitch: 1.6, volume: 0.05, interrupt: false });
+      } else if (cue === 'discover') {
+        this.speak(position, '别怕呀', { rate: 0.85, pitch: 1.55, volume: 0.05, interrupt: false });
+      }
+    });
+  }
+
+  /** 金阙 (Howler) arrogant female command 「聚。」— cold, chest-forward, cathedral reverb. */
+  jinqueCommand(position: THREE.Vector3): void {
+    this.safe(undefined, () => {
+      if (!this.ok() || !this.gate('jinque', 1.5)) return;
+      const ctx = this.ctx!;
+      const t0 = ctx.currentTime + 0.03;
+      const shot = new Shot(this.transient);
+      const pos = new THREE.Vector3(position.x, position.y + 6, position.z);
+      // far voice that still carries: she is ~40 m off and means to be heard
+      const pan = this.panner(shot, pos, 16, 0.55, this.voice);
+      const presence = this.filt(shot, 'peaking', 2400, 0.9, pan);
+      presence.gain.value = 4;
+      const out = this.gain(shot, 1.1, presence);
+      this.send(shot, out, 0.9);
+      // stacked doubles = one voice speaking with the weight of a court behind it
+      this.formantVoice(shot, t0, 1.0, 1.0, 0.18, this.gain(shot, 0.9, out), JINQUE);
+      this.formantVoice(shot, t0 + 0.012, 0.992, 0.7, 0.2, this.gain(shot, 0.45, out), JINQUE);
+      this.formantVoice(shot, t0 + 0.02, 1.5, 0.35, 0.3, this.gain(shot, 0.18, out), JINQUE);
+      this.speak(position, '聚', { rate: 0.7, pitch: 1.1, volume: 0.06, interrupt: false });
+    });
   }
 
   chaserGrowl(position: THREE.Vector3): void {
@@ -1441,14 +1634,16 @@ export class AudioSystem {
     this.safe(undefined, () => {
       if (!this.ok() || !this.gate('howl', 2)) return;
       const ctx = this.ctx!;
-      const t = ctx.currentTime + 0.05;
+      // 「聚。」 first, then the keen rises under it
+      this.jinqueCommand(position);
+      const t = ctx.currentTime + 0.55;
       const D = 3.8;
       const shot = new Shot(this.transient);
       const pan = this.panner(shot, position, 15, 0.6, this.sfx);
       const out = this.gain(shot, 0, pan);
       out.gain.setValueAtTime(0, t);
-      out.gain.linearRampToValueAtTime(0.9, t + 0.6);
-      out.gain.setValueAtTime(0.9, t + D - 1.1);
+      out.gain.linearRampToValueAtTime(0.6, t + 0.6);
+      out.gain.setValueAtTime(0.6, t + D - 1.1);
       out.gain.linearRampToValueAtTime(0, t + D);
       this.send(shot, out, 1.2);
 
@@ -1460,13 +1655,14 @@ export class AudioSystem {
       shaped.connect(fA);
       shaped.connect(fB);
       shaped.connect(body);
-      fA.frequency.setValueAtTime(300, t);
-      fA.frequency.linearRampToValueAtTime(750, t + 1.4);
-      fA.frequency.linearRampToValueAtTime(650, t + 2.4);
-      fA.frequency.linearRampToValueAtTime(320, t + D);
-      fB.frequency.setValueAtTime(700, t);
-      fB.frequency.linearRampToValueAtTime(1150, t + 1.4);
-      fB.frequency.linearRampToValueAtTime(650, t + D);
+      // female "ooo-aaa-ooo" formants (shorter tract than the old bellow)
+      fA.frequency.setValueAtTime(420, t);
+      fA.frequency.linearRampToValueAtTime(950, t + 1.4);
+      fA.frequency.linearRampToValueAtTime(820, t + 2.4);
+      fA.frequency.linearRampToValueAtTime(430, t + D);
+      fB.frequency.setValueAtTime(900, t);
+      fB.frequency.linearRampToValueAtTime(1500, t + 1.4);
+      fB.frequency.linearRampToValueAtTime(850, t + D);
       const ws = this.shaper(shot, shaped);
       const pre = this.gain(shot, 1.5, ws);
 
@@ -1476,20 +1672,21 @@ export class AudioSystem {
       vibDepth.gain.linearRampToValueAtTime(45, t + 2.5);
       const vib = this.osc(shot, 'sine', 4.2, t, t + D, vibDepth);
       vib.frequency.linearRampToValueAtTime(5.5, t + D);
+      // female keen (金阙's summoning wail), not a beast bellow: ~220-420 Hz
       const contour: Array<[number, number]> = [
-        [0, 62],
-        [0.6, 95],
-        [1.4, 150],
-        [2.4, 140],
-        [3.2, 95],
-        [D, 55],
+        [0, 230],
+        [0.6, 300],
+        [1.4, 420],
+        [2.4, 400],
+        [3.2, 300],
+        [D, 210],
       ];
       const layers: Array<[OscillatorType, number, number]> = [
-        ['sawtooth', 1, 0.35],
-        ['sawtooth', 1.007, 0.3],
-        ['sawtooth', 0.993, 0.3],
-        ['sawtooth', 0.5, 0.35],
-        ['triangle', 2.01, 0.2],
+        ['sawtooth', 1, 0.3],
+        ['sawtooth', 1.007, 0.26],
+        ['sawtooth', 0.993, 0.26],
+        ['triangle', 0.5, 0.08],
+        ['triangle', 2.01, 0.14],
       ];
       for (const [type, m, lvl] of layers) {
         const o = this.osc(shot, type, contour[0][1] * m, t, t + D, this.gain(shot, lvl, pre));

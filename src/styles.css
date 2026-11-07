@@ -1127,3 +1127,27 @@ h1 {
     padding: 6px 8px;
   }
 }
+
+/* ---- i18n: language toggle + English text fitting (Chinese layout unchanged) */
+.lang-btn {
+  margin-top: 12px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+#screen-pause .row + .row { margin-top: 10px; }
+html[lang='en'] .meter-label {
+  width: auto;
+  min-width: 2.3em;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+html[lang='en'] #zone-glyph { font-size: 15px; letter-spacing: 0.04em; }
+html[lang='en'] .title-mark.small { font-size: 30px; letter-spacing: 0.08em; }
+html[lang='en'] h1 { letter-spacing: 0.08em; }
+html[lang='en'] .tagline { letter-spacing: 0.08em; }
+html[lang='en'] #banner-title { letter-spacing: 0.12em; }
+html[lang='en'] #banner-sub { letter-spacing: 0.04em; }
+html[lang='en'] .slot small { letter-spacing: 0.02em; }
+html[lang='en'] #haul small { letter-spacing: 0.12em; }
+html[lang='en'] .btn { letter-spacing: 0.08em; }
+html[lang='en'] #light-state { letter-spacing: 0.04em; min-width: 3.2em; }

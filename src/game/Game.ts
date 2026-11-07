@@ -5,14 +5,15 @@ import { Loop } from '../core/Loop';
 import { createRenderer, resizeRenderer } from '../core/Renderer';
 import { LOW_SPEC } from '../core/Quality';
 import { Caller, Grabber, Howler, type MonsterContext } from '../entities/Monsters';
-import { PeachField, TIER_HARVEST_TIME, TIER_NAMES, TIER_VALUE, type Peach } from '../entities/PeachField';
+import { PeachField, TIER_HARVEST_TIME, TIER_VALUE, type Peach } from '../entities/PeachField';
 import { Player, PLAYER } from '../entities/Player';
 import { AudioSystem } from '../systems/AudioSystem';
 import { BurstVfx, RenderPipeline } from '../systems/RenderPipeline';
 import { Hud, type CompassMarker } from '../ui/Hud';
+import { applyStaticI18n, fmt, getLang, onLangChange, t, toggleLang, type I18nKey } from '../ui/i18n';
 import { createSeededRandom } from '../utils/random';
 import { Level, pathPoint, type ShrineKind, type ShrineSite } from './Level';
-import { ZONE_GLYPHS, ZONE_NAMES, zoneAt } from './LevelPath';
+import { zoneAt } from './LevelPath';
 
 type GameState = 'title' | 'playing' | 'paused' | 'dead' | 'extracted';
 type DeathCause = 'grabber' | 'caller';
@@ -47,18 +48,12 @@ const GRABBER_PLAN: { zone: number; t0: number; t1: number }[] = [
   { zone: 2, t0: 345, t1: 375 },
 ];
 
-const DEATH_COPY: Record<DeathCause, { glyph: string; title: string; reason: string }> = {
-  grabber: {
-    glyph: '紫陌',
-    title: '紫陌掠命',
-    reason: '紫陌两度扣住你的心口，掌心竖瞳吸尽了命火。灯光能逼退她，暗处可以藏身。',
-  },
-  caller: {
-    glyph: '青鸾',
-    title: '青鸾点名',
-    reason: '青鸾在身后唤了一声「猴哥——」，你回了头。摘桃时，切莫应她。',
-  },
+/** Death screen copy lives in the locale tables (ui/i18n.ts); ZH keeps 紫陌掠命 / 青鸾点名. */
+const DEATH_COPY: Record<DeathCause, { glyph: I18nKey; title: I18nKey; reason: I18nKey }> = {
+  grabber: { glyph: 'death.grabber.glyph', title: 'death.grabber.title', reason: 'death.grabber.reason' },
+  caller: { glyph: 'death.caller.glyph', title: 'death.caller.title', reason: 'death.caller.reason' },
 };
+const tierName = (tier: number): string => t(`tier.name.${tier}` as I18nKey);
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
@@ -123,6 +118,9 @@ export class Game {
   /** Set when pointer-lock loss itself paused the game, so that same Escape does not resume. */
   private suppressEscapeResume = false;
   private lockRequestId = 0;
+  /** Last end-of-run screens, kept so a language switch can re-render them. */
+  private lastDeath: { cause: DeathCause; lost: number } | null = null;
+  private lastResult: { counts: number[]; haul: number; newBest: boolean } | null = null;
 
   // scratch
   private readonly flat = new THREE.Vector3();
@@ -199,6 +197,9 @@ export class Game {
     }
 
     this.bindUi();
+    applyStaticI18n();
+    this.hud.relocalize();
+    this.cleanup.push(onLangChange(() => this.relocalize()));
     this.prepareRun(1);
     this.setState('title');
     this.updateBestLine();
@@ -258,9 +259,15 @@ export class Game {
     });
     this.on('#mute-button', 'click', () => {
       this.audio.setMuted(!this.audio.muted);
-      this.el('#mute-button').textContent = this.audio.muted ? '声 · 关' : '声 · 开';
+      this.updateMuteLabel();
       this.audio.uiClick();
     });
+    for (const id of ['#lang-button', '#title-lang-button']) {
+      this.on(id, 'click', () => {
+        toggleLang();
+        this.audio.uiClick();
+      });
+    }
     for (const id of ['#restart-button', '#retry-button', '#again-button']) {
       this.on(id, 'click', () => {
         void this.audio.unlock();
@@ -353,7 +360,21 @@ export class Game {
   }
 
   private updateBestLine(): void {
-    this.el('#best-line').textContent = this.bestScore > 0 ? `最佳收获：${this.bestScore.toLocaleString('zh-CN')}` : '';
+    this.el('#best-line').textContent = this.bestScore > 0 ? t('title.best', { n: this.bestScore }) : '';
+  }
+
+  private updateMuteLabel(): void {
+    this.el('#mute-button').textContent = t(this.audio.muted ? 'pause.soundOff' : 'pause.soundOn');
+  }
+
+  /** Language switched (title / pause button): re-render everything set from code. */
+  private relocalize(): void {
+    this.hud.relocalize();
+    this.updateMuteLabel();
+    this.updateBestLine();
+    this.renderDeath();
+    this.renderResult();
+    document.body.dataset.lang = getLang();
   }
 
   // --------------------------------------------------------------- states
@@ -403,11 +424,9 @@ export class Game {
     if (playing) this.requestLock();
   }
 
-  private harvestHint(): string {
-    const pick = this.input.touchMode
-      ? '对准发光的桃子长按「摘」'
-      : '对准发光的桃子长按 E / 鼠标';
-    return `灯已点亮 · ${pick} · 摘桃时若有人唤「猴哥——」，千万别回头。`;
+  private harvestHint(): () => string {
+    const touch = this.input.touchMode;
+    return () => t(touch ? 'hint.harvest.touch' : 'hint.harvest.mouse');
   }
 
   /** Reset the world for a fresh night. Does not change the visible state. */
@@ -514,7 +533,7 @@ export class Game {
     this.hud.setVisible(true);
     this.hud.setVitals(1, 1, 1, true);
     this.hud.showHint(this.harvestHint(), 9);
-    this.hud.showBanner('偷桃前夜', '点亮的冷蓝石阙才是归处；有的灯会骗你。', 'info', 4);
+    this.hud.showBanner(() => t('banner.start.title'), () => t('banner.start.sub'), 'info', 4);
     if (!this.input.touchMode) this.requestLock();
   }
 
@@ -533,12 +552,8 @@ export class Game {
       const c = this.callers.find((k) => k.state === 'calling') ?? this.callers[0];
       c.lunge(this.player.eye, this.player.forward);
     }
-    const lost = this.haul;
-    const copy = DEATH_COPY[cause];
-    this.el('#dead-glyph').textContent = copy.glyph;
-    this.el('#dead-title').textContent = copy.title;
-    this.el('#dead-reason').textContent = copy.reason;
-    this.el('#dead-lost').textContent = lost > 0 ? `散落桃值：${lost.toLocaleString('zh-CN')}` : '你两手空空。';
+    this.lastDeath = { cause, lost: this.haul };
+    this.renderDeath();
     this.deadDelay = cause === 'caller' ? 1.1 : 1.5;
     this.setState('dead');
   }
@@ -557,23 +572,40 @@ export class Game {
     this.audio.extractSuccess();
     this.audio.harvestStop();
     this.releaseLock();
-    const rows = this.el('#result-rows');
-    rows.replaceChildren();
-    for (let t = 0; t < 4; t++) {
-      if (this.satchel[t] === 0) continue;
-      const row = document.createElement('div');
-      row.className = 'result-row';
-      row.style.color = TIER_COLORS[t];
-      row.textContent = `${TIER_NAMES[t]} × ${this.satchel[t]} = ${(this.satchel[t] * TIER_VALUE[t]).toLocaleString('zh-CN')}`;
-      rows.appendChild(row);
-    }
-    if (this.haul === 0) rows.textContent = '空手而归。';
-    this.el('#result-total').textContent = this.haul.toLocaleString('zh-CN');
-    this.el('#result-best').textContent = newBest ? '新的最佳收获！' : `最佳收获：${this.bestScore.toLocaleString('zh-CN')}`;
+    this.lastResult = { counts: [...this.satchel], haul: this.haul, newBest };
+    this.renderResult();
     this.updateBestLine();
     this.hud.clearTransient();
     this.player.frozen = true;
     this.setState('extracted');
+  }
+
+  private renderDeath(): void {
+    const d = this.lastDeath;
+    if (!d) return;
+    const copy = DEATH_COPY[d.cause];
+    this.el('#dead-glyph').textContent = t(copy.glyph);
+    this.el('#dead-title').textContent = t(copy.title);
+    this.el('#dead-reason').textContent = t(copy.reason);
+    this.el('#dead-lost').textContent = d.lost > 0 ? t('dead.lost', { n: d.lost }) : t('dead.empty');
+  }
+
+  private renderResult(): void {
+    const r = this.lastResult;
+    if (!r) return;
+    const rows = this.el('#result-rows');
+    rows.replaceChildren();
+    for (let tier = 0; tier < 4; tier++) {
+      if (r.counts[tier] === 0) continue;
+      const row = document.createElement('div');
+      row.className = 'result-row';
+      row.style.color = TIER_COLORS[tier];
+      row.textContent = t('won.row', { tier: tierName(tier), count: r.counts[tier], value: r.counts[tier] * TIER_VALUE[tier] });
+      rows.appendChild(row);
+    }
+    if (r.haul === 0) rows.textContent = t('won.empty');
+    this.el('#result-total').textContent = fmt(r.haul);
+    this.el('#result-best').textContent = r.newBest ? t('won.newBest') : t('won.best', { n: this.bestScore });
   }
 
   // ----------------------------------------------------------------- loop
@@ -688,7 +720,7 @@ export class Game {
       if (ev === 'voice') {
         // The call is always the Chinese 「猴哥——」, never romanised.
         this.hud.showSubtitle('猴哥——', 2.2);
-        this.hud.showBanner('青鸾点名', '别回头。', 'caller', 2.6);
+        this.hud.showBanner(() => t('banner.caller.title'), () => t('banner.caller.sub'), 'caller', 2.6);
       }
       // 圣地护体: her call still plays outside the circle, but looking is safe inside it.
       if (c.armed && !this.sanctuary && this.state === 'playing' && this.isLookingAt(c)) {
@@ -728,7 +760,7 @@ export class Game {
         this.hunt = false;
         this.howler.dismiss();
         this.hud.setHunt(null);
-        this.hud.showBanner('金阙退去', '园子暂且松了口气。', 'info', 2.5);
+        this.hud.showBanner(() => t('banner.howlerLeave.title'), () => t('banner.howlerLeave.sub'), 'info', 2.5);
       } else this.hud.setHunt(this.huntTimer / HUNT_DURATION);
     }
     const huntTarget = this.hunt ? 1 : 0;
@@ -758,14 +790,14 @@ export class Game {
     if (zone !== this.lastZone) {
       const first = this.lastZone < 0;
       this.lastZone = zone;
-      this.hud.setZone(ZONE_GLYPHS[zone], ZONE_NAMES[zone], '摘桃 · 寻冷蓝石阙归去');
-      if (!first) this.hud.showBanner(ZONE_GLYPHS[zone], ZONE_NAMES[zone], 'info', 2.8);
+      this.hud.setZone(zone);
+      if (!first) this.hud.showBanner(() => t(`zone.glyph.${zone}` as I18nKey), () => t(`zone.name.${zone}` as I18nKey), 'info', 2.8);
     }
     if (this.harvesting && target) {
       this.hud.setPrompt(null, 0);
-      this.hud.setPrompt({ text: `正在摘${TIER_NAMES[target.tier]}…`, value: `+${TIER_VALUE[target.tier].toLocaleString('zh-CN')}`, key: this.input.touchMode ? '按住' : 'E' }, this.harvestProgress);
+      this.hud.setPrompt({ text: t('prompt.picking', { tier: tierName(target.tier) }), value: `+${fmt(TIER_VALUE[target.tier])}`, key: this.input.touchMode ? t('prompt.keyTouch') : 'E' }, this.harvestProgress);
     } else if (target) {
-      this.hud.setPrompt({ text: `长按摘${TIER_NAMES[target.tier]}`, value: `+${TIER_VALUE[target.tier].toLocaleString('zh-CN')}`, key: this.input.touchMode ? '按住' : 'E' }, 0);
+      this.hud.setPrompt({ text: t('prompt.hold', { tier: tierName(target.tier) }), value: `+${fmt(TIER_VALUE[target.tier])}`, key: this.input.touchMode ? t('prompt.keyTouch') : 'E' }, 0);
     } else {
       this.hud.setPrompt(null, 0);
     }
@@ -773,7 +805,7 @@ export class Game {
 
     const markers: CompassMarker[] = [];
     // Only real shrines are on the compass — baits must be read by eye.
-    for (const s of this.level.shrines) if (s.kind === 'real') markers.push({ x: s.position.x, z: s.position.z, kind: 'shrine', label: '归' });
+    for (const s of this.level.shrines) if (s.kind === 'real') markers.push({ x: s.position.x, z: s.position.z, kind: 'shrine', label: t('compass.home') });
     this.hud.updateCompass(p.yaw, p.position.x, p.position.z, markers);
 
     // ---- Pipeline grade
@@ -805,7 +837,7 @@ export class Game {
       this.sanctuaryCircle.z = site.position.z;
       if (!wasSanctuary && !this.sanctuaryBannerShown) {
         this.sanctuaryBannerShown = true;
-        this.hud.showBanner('灯火归位', '守在灯里。', 'info', 1.5);
+        this.hud.showBanner(() => t('banner.sanctuary.title'), () => t('banner.sanctuary.sub'), 'info', 1.5);
       }
     }
   }
@@ -816,7 +848,7 @@ export class Game {
     this.baitLock[site.index] = BAIT_LOCKOUT;
     this.audio.extractCharge(0);
     this.hud.setExtract(null);
-    this.hud.showBanner('金阙戏弄', '这不是归处——灯是假的。', 'howl', 2.5);
+    this.hud.showBanner(() => t('banner.bait.title'), () => t('banner.bait.sub'), 'howl', 2.5);
     this.hud.flash('#7a1a0c', 0.55);
     this.player.addShake(0.6);
     this.damage = Math.max(this.damage, 0.5);
@@ -835,7 +867,7 @@ export class Game {
     }
     if (nearest) {
       nearest.lurch(p, BAIT_LURCH, this.level.colliders);
-      this.audio.chaserScream(nearest.position);
+      this.audio.zimoVoice(nearest.position, 'attack');
     }
   }
 
@@ -872,7 +904,7 @@ export class Game {
     this.satchel[peach.tier]++;
     this.haul += TIER_VALUE[peach.tier];
     this.hud.bumpSlot(peach.tier);
-    this.hud.toast(`${TIER_NAMES[peach.tier]}  +${TIER_VALUE[peach.tier].toLocaleString('zh-CN')}`, peach.tier);
+    this.hud.toast(`${tierName(peach.tier)}  +${fmt(TIER_VALUE[peach.tier])}`, peach.tier);
     this.burst.emit(peach.position, new THREE.Color(TIER_COLORS[peach.tier]), 14 + peach.tier * 10, 1.4, this.rng);
     this.endHarvest();
 
@@ -886,7 +918,7 @@ export class Game {
         this.howler.appear(this.mctx);
       }
       if (fresh) {
-        this.hud.showBanner('金阙合围', '冲向真归处——假灯没有护体。', 'howl', 4);
+        this.hud.showBanner(() => t('banner.hunt.title'), () => t('banner.hunt.sub'), 'howl', 4);
         this.hud.flash('#ffcf4a', 0.5);
       }
     }
@@ -901,9 +933,11 @@ export class Game {
     this.endHarvest();
     this.audio.harvestStop();
     this.audio.chaserHit();
+    this.audio.zimoVoice(g.position, 'attack');
     this.audio.playerHurt();
     this.hud.flash('#a00a14', 0.7);
-    this.hud.showBanner('紫陌掠命', p.health > 0 ? '命火被撕去一半。' : '命火已尽。', 'danger', 2.2);
+    const grabSub: I18nKey = p.health > 0 ? 'banner.grab.half' : 'banner.grab.dead';
+    this.hud.showBanner(() => t('banner.grab.title'), () => t(grabSub), 'danger', 2.2);
     if (p.health <= 0) this.die('grabber');
   }
 

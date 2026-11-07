@@ -1,4 +1,9 @@
 import { TIER_COLORS } from '../assets/MaterialLibrary';
+import { fmt, t, type I18nKey } from './i18n';
+
+/** Localisable text: a literal, or a thunk re-evaluated when the language changes. */
+export type Text = string | (() => string);
+const txt = (v: Text): string => (typeof v === 'function' ? v() : v);
 
 export interface CompassMarker {
   x: number;
@@ -54,7 +59,10 @@ export class Hud {
   private readonly flashEl = $('#fx-flash');
   private readonly compassTrack = $('#compass-track');
   private readonly compassMarkers = $('#compass-markers');
-  private readonly ticks: { el: HTMLElement; angle: number; label?: HTMLElement }[] = [];
+  private readonly ticks: { el: HTMLElement; angle: number; label?: HTMLElement; key?: I18nKey }[] = [];
+  private bannerText: [Text, Text] = ['', ''];
+  private hintText: Text = '';
+  private zoneIndex = -1;
   private markerEls: HTMLElement[] = [];
   private bannerTimer = 0;
   private subtitleTimer = 0;
@@ -71,7 +79,7 @@ export class Hud {
   };
 
   constructor() {
-    const labels: Record<number, string> = { 0: '北', 90: '东', 180: '南', 270: '西' };
+    const labels: Record<number, I18nKey> = { 0: 'compass.n', 90: 'compass.e', 180: 'compass.s', 270: 'compass.w' };
     for (let deg = 0; deg < 360; deg += 15) {
       const el = document.createElement('div');
       el.className = `compass-tick${deg % 45 === 0 ? ' major' : ''}`;
@@ -80,10 +88,10 @@ export class Hud {
       if (labels[deg] || deg % 45 === 0) {
         label = document.createElement('div');
         label.className = 'compass-label';
-        label.textContent = labels[deg] ?? '◇';
+        label.textContent = labels[deg] ? t(labels[deg]) : '◇';
         this.compassTrack.appendChild(label);
       }
-      this.ticks.push({ el, angle: (deg * Math.PI) / 180, label });
+      this.ticks.push({ el, angle: (deg * Math.PI) / 180, label, key: labels[deg] });
     }
   }
 
@@ -95,10 +103,24 @@ export class Hud {
     for (const [k, el] of Object.entries(this.screens)) el.classList.toggle('hidden', k !== name);
   }
 
-  setZone(glyph: string, name: string, objective: string): void {
-    this.zoneGlyph.textContent = glyph;
-    this.zoneName.textContent = name;
-    this.objective.textContent = objective;
+  /** Zone panel from the zone index (0..2); text follows the active language. */
+  setZone(zone: number): void {
+    this.zoneIndex = zone;
+    const z = Math.max(0, Math.min(2, zone));
+    this.zoneGlyph.textContent = t(`zone.glyph.${z}` as I18nKey);
+    this.zoneName.textContent = t(`zone.name.${z}` as I18nKey);
+    this.objective.textContent = t('objective');
+  }
+
+  /** Re-render every piece of HUD text that was set from code (static nodes use data-i18n). */
+  relocalize(): void {
+    for (const tk of this.ticks) if (tk.label && tk.key) tk.label.textContent = t(tk.key);
+    this.setZone(this.zoneIndex < 0 ? 0 : this.zoneIndex);
+    this.lightState.textContent = t(this.last.light ? 'light.on' : 'light.off');
+    this.haul.textContent = fmt(this.haulShown);
+    this.bannerTitle.textContent = txt(this.bannerText[0]);
+    this.bannerSub.textContent = txt(this.bannerText[1]);
+    this.hint.textContent = txt(this.hintText);
   }
 
   setVitals(health01: number, stamina01: number, battery01: number, lightOn: boolean): void {
@@ -121,7 +143,7 @@ export class Hud {
       this.last.b = b;
     }
     if (lightOn !== this.last.light) {
-      this.lightState.textContent = lightOn ? '明' : '熄';
+      this.lightState.textContent = t(lightOn ? 'light.on' : 'light.off');
       this.lightState.classList.toggle('off', !lightOn);
       this.last.light = lightOn;
     }
@@ -132,7 +154,7 @@ export class Hud {
     this.haulTarget = haul;
     if (instant) {
       this.haulShown = haul;
-      this.haul.textContent = haul.toLocaleString('zh-CN');
+      this.haul.textContent = fmt(haul);
     }
   }
 
@@ -163,10 +185,11 @@ export class Hud {
     this.ring.style.strokeDashoffset = String(251.3 * (1 - progress01));
   }
 
-  showBanner(title: string, sub: string, kind: 'danger' | 'caller' | 'howl' | 'info', seconds: number): void {
+  showBanner(title: Text, sub: Text, kind: 'danger' | 'caller' | 'howl' | 'info', seconds: number): void {
     this.banner.className = kind;
-    this.bannerTitle.textContent = title;
-    this.bannerSub.textContent = sub;
+    this.bannerText = [title, sub];
+    this.bannerTitle.textContent = txt(title);
+    this.bannerSub.textContent = txt(sub);
     this.bannerTimer = seconds;
   }
 
@@ -176,8 +199,9 @@ export class Hud {
     this.subtitleTimer = seconds;
   }
 
-  showHint(text: string, seconds = 5): void {
-    this.hint.textContent = text;
+  showHint(text: Text, seconds = 5): void {
+    this.hintText = text;
+    this.hint.textContent = txt(text);
     this.hint.classList.remove('hidden');
     this.hintTimer = seconds;
   }
@@ -265,7 +289,7 @@ export class Hud {
       const diff = this.haulTarget - this.haulShown;
       this.haulShown += Math.sign(diff) * Math.max(1, Math.ceil(Math.abs(diff) * Math.min(1, dt * 8)));
       if (Math.abs(this.haulTarget - this.haulShown) < 1) this.haulShown = this.haulTarget;
-      this.haul.textContent = this.haulShown.toLocaleString('zh-CN');
+      this.haul.textContent = fmt(this.haulShown);
     }
   }
 
